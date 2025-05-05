@@ -26,7 +26,7 @@ export function Footer() {
         <div className="flex flex-col space-y-2 text-sm items-center md:items-start">
           <Link href="/#how-it-works" className="hover:text-primary transition-colors">¿Cómo Funciona?</Link>
           <Link href="/donate" className="hover:text-primary transition-colors">Donaciones</Link>
-          <Link href="/map" className="hover:text-primary transition-colors">Mapa de Estaciones</Link>
+          <Link href="/stations" className="hover:text-primary transition-colors">Estaciones</Link> {/* Changed href and text */}
           <Link href="/terms" className="hover:text-primary transition-colors">Términos y Condiciones</Link>
         </div>
 

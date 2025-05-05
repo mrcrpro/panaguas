@@ -11,6 +11,7 @@ interface StationDoc {
     location?: string;
     status?: string; // Assuming status is stored directly
     availableUmbrellas?: number;
+    capacity?: number; // Add capacity field
     // Use the correct GeoPoint type from firebase-admin
     coords?: admin.firestore.GeoPoint;
 }
@@ -22,6 +23,7 @@ interface StationAPIResponse {
     location: string;
     status: string;
     available: number;
+    capacity: number; // Add capacity field
     coords: [number, number];
 }
 
@@ -56,6 +58,7 @@ export async function GET() {
             const name = data.name ?? 'Nombre Desconocido';
             const location = data.location ?? 'Ubicación Desconocida';
             const available = typeof data.availableUmbrellas === 'number' && !isNaN(data.availableUmbrellas) ? data.availableUmbrellas : 0;
+            const capacity = typeof data.capacity === 'number' && !isNaN(data.capacity) ? data.capacity : 10; // Default capacity if missing
 
             // Check coords validity
             const coords: [number, number] = data.coords && typeof data.coords.latitude === 'number' && typeof data.coords.longitude === 'number'
@@ -75,6 +78,7 @@ export async function GET() {
                 location: location,
                 status: status,
                 available: available,
+                capacity: capacity, // Include capacity
                 coords: coords,
             };
         });
@@ -82,13 +86,13 @@ export async function GET() {
         console.log(`API Route /api/stations: Successfully mapped ${stationsData.length} stations.`);
         return NextResponse.json(stationsData, { status: 200 });
 
-    } catch (error: unknown) { // Catch unknown type
+    } catch (error: any) { // Catch any type
         console.error("------------------------------------------");
         console.error("!!! API Route /api/stations: Error fetching stations from Firestore !!!");
         console.error("Timestamp:", new Date().toISOString());
 
-        // Check if it's a FirebaseError
-        if (error instanceof admin.FirebaseError) { // Use admin.FirebaseError for type checking
+        // Check if it's a FirebaseError using instanceof
+        if (error instanceof admin.FirebaseError) {
              console.error("Firebase Error Code:", error.code);
              console.error("Firebase Error Message:", error.message);
              // Check for specific permission denied error

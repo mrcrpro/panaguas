@@ -1,7 +1,7 @@
 
 import { NextResponse } from 'next/server';
-import { firestoreAdmin } from '@/lib/firebase/admin-config'; // Use Admin SDK
-import type { FirebaseError } from 'firebase-admin'; // Import FirebaseError type for better typing
+import { firestoreAdmin, admin } from '@/lib/firebase/admin-config'; // Import admin for FirebaseError type check
+import type { FirebaseError } from 'firebase-admin'; // Explicitly import type if needed, but admin.FirebaseError works
 
 export const dynamic = 'force-dynamic' // Ensure fresh data on each request
 
@@ -28,16 +28,27 @@ interface StationAPIResponse {
 
 export async function GET() {
     try {
-        console.log("Attempting to fetch stations data from Firestore...");
+        console.log("API Route /api/stations: Attempting to fetch stations data from Firestore...");
+
+        // Ensure firestoreAdmin is initialized (handled in admin-config.ts, but good practice)
+        if (!firestoreAdmin) {
+            console.error("API Route /api/stations: Firestore Admin is not initialized!");
+            throw new Error("Firestore Admin service is unavailable.");
+        }
+
         const stationsRef = firestoreAdmin.collection('stations');
+        console.log("API Route /api/stations: Firestore collection reference obtained for 'stations'.");
+
         const snapshot = await stationsRef.get();
+        console.log("API Route /api/stations: Firestore get() operation completed.");
+
 
         if (snapshot.empty) {
-            console.log("No station documents found in 'stations' collection.");
+            console.log("API Route /api/stations: No station documents found in 'stations' collection.");
             return NextResponse.json([], { status: 200 });
         }
 
-        console.log(`Found ${snapshot.docs.length} station documents. Mapping data...`);
+        console.log(`API Route /api/stations: Found ${snapshot.docs.length} station documents. Mapping data...`);
         const stationsData: StationAPIResponse[] = snapshot.docs.map(doc => {
             const data = doc.data() as StationDoc;
 
@@ -68,24 +79,29 @@ export async function GET() {
             };
         });
 
-        console.log(`Successfully mapped ${stationsData.length} stations.`);
+        console.log(`API Route /api/stations: Successfully mapped ${stationsData.length} stations.`);
         return NextResponse.json(stationsData, { status: 200 });
 
     } catch (error: unknown) { // Catch unknown type
         console.error("------------------------------------------");
-        console.error("!!! Error fetching stations from Firestore !!!");
+        console.error("!!! API Route /api/stations: Error fetching stations from Firestore !!!");
         console.error("Timestamp:", new Date().toISOString());
 
-        // Type guard for FirebaseError
-        const firebaseError = error as FirebaseError;
-        if (firebaseError.code) {
-             console.error("Firebase Error Code:", firebaseError.code);
-             console.error("Firebase Error Message:", firebaseError.message);
-             console.error("Firebase Error Stack:", firebaseError.stack);
+        // Check if it's a FirebaseError
+        if (error instanceof admin.FirebaseError) { // Use admin.FirebaseError for type checking
+             console.error("Firebase Error Code:", error.code);
+             console.error("Firebase Error Message:", error.message);
+             // Check for specific permission denied error
+             if (error.code === 'permission-denied') {
+                 console.error("PERMISSION DENIED: Check Firestore Security Rules and Service Account IAM Roles.");
+             }
+             console.error("Firebase Error Stack:", error.stack);
         } else if (error instanceof Error) {
+             console.error("Generic Error Name:", error.name)
              console.error("Generic Error Message:", error.message);
              console.error("Generic Error Stack:", error.stack);
         } else {
+             console.error("Unknown Error Type:", typeof error);
              console.error("Unknown Error:", error);
         }
          console.error("------------------------------------------");
@@ -95,7 +111,8 @@ export async function GET() {
             {
                 message: "Error interno del servidor al obtener estaciones.",
                 errorDetails: error instanceof Error ? error.message : 'Unknown error occurred',
-                 errorCode: firebaseError?.code ?? 'UNKNOWN' // Include Firebase error code if available
+                 // Attempt to get error code, casting to any as fallback
+                 errorCode: (error as any)?.code ?? 'UNKNOWN'
             },
             { status: 500 }
         );

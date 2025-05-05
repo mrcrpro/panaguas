@@ -8,6 +8,7 @@ import { Navbar } from '@/components/layout/navbar'; // Import Navbar
 import { Footer } from '@/components/layout/footer'; // Import Footer
 import { ThemeProvider } from '@/components/theme-provider'; // Import ThemeProvider
 import QueryProvider from '@/context/query-provider'; // Import QueryProvider
+import { Suspense } from 'react'; // Import Suspense for loading states
 
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -33,11 +34,17 @@ export default function RootLayout({
           >
           <QueryProvider> {/* Wrap with QueryProvider */}
               <AuthProvider>
-                <Navbar /> {/* Add Navbar */}
+                <Suspense fallback={<div>Cargando Navegación...</div>}> {/* Add Suspense for Navbar */}
+                  <Navbar /> {/* Add Navbar */}
+                </Suspense>
                 <main className="flex-grow container mx-auto px-4 py-8"> {/* Add main content wrapper */}
-                  {children}
+                  <Suspense fallback={<div>Cargando Contenido...</div>}> {/* Add Suspense for main content */}
+                    {children}
+                  </Suspense>
                 </main>
-                <Footer /> {/* Add Footer */}
+                <Suspense fallback={<div>Cargando Pie de página...</div>}> {/* Add Suspense for Footer */}
+                   <Footer /> {/* Add Footer */}
+                </Suspense>
                 <Toaster />
               </AuthProvider>
           </QueryProvider>

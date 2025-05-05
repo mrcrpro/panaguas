@@ -10,15 +10,10 @@ const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 
 // Throw a more specific error if required variables are missing
 if (!apiKey || !authDomain || !projectId) {
-  console.error("Firebase Config Error: Missing required environment variables."); // Slightly reworded
-  console.error("Required:", {
-    NEXT_PUBLIC_FIREBASE_API_KEY: apiKey ? 'Set' : 'MISSING', // Uppercase for emphasis
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: authDomain ? 'Set' : 'MISSING',
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID: projectId ? 'Set' : 'MISSING',
-  });
-  console.error("Please ensure these variables are correctly set in your .env.local file or environment configuration."); // Added instruction
+  // The console logs are removed as the error thrown below provides sufficient information.
+  // It's expected that these might be missing during initial setup.
   throw new Error(
-    "Missing Firebase configuration. Ensure NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, and NEXT_PUBLIC_FIREBASE_PROJECT_ID environment variables are correctly set in your .env.local file or environment."
+    "Missing Firebase configuration. Ensure NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, and NEXT_PUBLIC_FIREBASE_PROJECT_ID environment variables are correctly set in your .env.local file or environment. See the README or .env.local.example for more details."
   );
 }
 

@@ -1,0 +1,517 @@
+
+# Arduino ESP32 Implementation Guide for PanAguas System
+
+This guide outlines how to implement the Arduino ESP32 firmware to interact with the PanAguas backend API you've created.
+
+## 1. Hardware Setup
+
+*   **ESP32 Board:** Choose a suitable ESP32 development board (e.g., ESP32-DevKitC, NodeMCU-32S).
+*   **RFID/NFC Reader:** Connect your chosen reader (e.g., MFRC522, PN532) to the ESP32 using the appropriate interface (SPI or I2C). Ensure correct pin connections.
+*   **Umbrella Release Mechanism:** Connect a servomotor, solenoid lock, or other mechanism to a GPIO pin on the ESP32. Use appropriate circuitry (e.g., transistor driver if needed) to handle the power requirements of the mechanism.
+*   **Return Detection:** Implement a method to detect umbrella return:
+    *   **Button:** Connect a push button to a GPIO pin.
+    *   **Sensor:** Connect a sensor (e.g., limit switch, IR proximity sensor, load cell) to the appropriate GPIO pin(s).
+*   **Status Indicator (Optional):** Connect LEDs (e.g., Green for Ready/Authorized, Red for Denied/Error) to GPIO pins.
+*   **Power Supply:** Provide adequate power to the ESP32 and connected peripherals.
+
+## 2. Arduino IDE Setup
+
+*   **Install ESP32 Board Support:** Follow the official Espressif instructions to add ESP32 board support to your Arduino IDE: [https://docs.espressif.com/projects/arduino-esp32/en/latest/installing.html](https://docs.espressif.com/projects/arduino-esp32/en/latest/installing.html)
+*   **Install Libraries:** Use the Arduino Library Manager (Sketch > Include Library > Manage Libraries...) to install:
+    *   `WiFi`: For connecting to the network.
+    *   `HTTPClient`: For making HTTPS requests.
+    *   `ArduinoJson`: For parsing JSON responses from the backend.
+    *   **RFID/NFC Library:** The specific library for your reader (e.g., `MFRC522` by miguelbalboa, `Adafruit PN532`).
+    *   **Servo Library (if using servo):** `ESP32Servo` (often included with ESP32 core).
+
+## 3. Firmware Configuration (Constants and Secrets)
+
+Define constants at the beginning of your `.ino` sketch:
+
+```c++
+// --- WiFi Credentials ---
+const char* ssid = "YOUR_WIFI_SSID";
+const char* password = "YOUR_WIFI_PASSWORD";
+
+// --- Backend API Configuration ---
+const char* backend_host = "YOUR_BACKEND_DEPLOYMENT_URL"; // e.g., "your-app-name.vercel.app" or IP address
+const int backend_port = 443; // HTTPS port
+const char* api_key = "YOUR_ESP32_API_KEY"; // The same key set in your backend's .env.local
+
+// --- Station Configuration ---
+const char* station_id = "YOUR_UNIQUE_STATION_ID"; // e.g., "station-sd-01"
+
+// --- Pin Definitions ---
+const int RFID_SS_PIN = 5;  // Example for MFRC522 SS/SDA
+const int RFID_RST_PIN = 27; // Example for MFRC522 RST
+const int SERVO_PIN = 18;   // Example GPIO for servo signal
+const int RETURN_BUTTON_PIN = 23; // Example GPIO for return button
+const int LED_GREEN_PIN = 2; // Example GPIO for green LED
+const int LED_RED_PIN = 4;   // Example GPIO for red LED
+
+// --- Other Constants ---
+const long AUTHORIZATION_TIMEOUT_MS = 10000; // 10 seconds timeout for API calls
+const int UNLOCK_DURATION_MS = 2000; // How long the mechanism stays active (e.g., servo moves)
+```
+
+**Security Note:** Avoid hardcoding sensitive information directly. Consider using more secure methods for production, like provisioning secrets during manufacturing or using a configuration file stored on SPIFFS/LittleFS (though this adds complexity). For initial development, the above is acceptable.
+
+## 4. Core Logic Implementation (`.ino` file)
+
+```c++
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+
+// --- Include necessary peripheral libraries ---
+#include <SPI.h>      // If using SPI for RFID
+#include <MFRC522.h>  // Example for MFRC522
+// #include <Wire.h>     // If using I2C for RFID
+// #include <Adafruit_PN532.h> // Example for PN532
+#include <ESP32Servo.h> // If using a servo
+
+// --- Library Objects ---
+MFRC522 mfrc522(RFID_SS_PIN, RFID_RST_PIN); // Example MFRC522
+Servo umbrellaServo;                       // Example Servo
+
+// --- State Variables ---
+bool isReady = false; // Is the station ready to accept a card?
+unsigned long lastCardReadTime = 0;
+const unsigned long cardReadCooldown = 3000; // 3 seconds cooldown after read
+
+// --- Function Prototypes ---
+void connectWiFi();
+String readCardUID();
+bool requestLoanAuthorization(String userUid);
+bool notifyReturn();
+void unlockUmbrella();
+void indicateSuccess();
+void indicateFailure();
+void indicateBusy();
+void indicateReady();
+void handleReturnButton();
+
+
+// =========================
+//      SETUP FUNCTION
+// =========================
+void setup() {
+  Serial.begin(115200);
+  while (!Serial); // Wait for serial connection
+
+  Serial.println("PanAguas Station Booting Up...");
+
+  // --- Initialize Peripherals ---
+  pinMode(LED_GREEN_PIN, OUTPUT);
+  pinMode(LED_RED_PIN, OUTPUT);
+  pinMode(RETURN_BUTTON_PIN, INPUT_PULLUP); // Use internal pull-up
+
+  // --- Initialize Servo ---
+  #ifdef SERVO_PIN
+    umbrellaServo.attach(SERVO_PIN);
+    umbrellaServo.write(0); // Start in locked position
+    Serial.println("Servo Initialized.");
+  #endif
+
+  // --- Initialize RFID/NFC Reader ---
+  SPI.begin();          // Init SPI bus (if using SPI reader)
+  mfrc522.PCD_Init();   // Init MFRC522
+  Serial.print("RFID Reader Initialized: ");
+  Serial.println(mfrc522.PCD_ReadRegister(mfrc522.VersionReg), HEX);
+
+  // --- Connect to WiFi ---
+  connectWiFi();
+
+  Serial.println("Station Ready.");
+  indicateReady(); // Signal ready state
+  isReady = true;
+}
+
+// =========================
+//       LOOP FUNCTION
+// =========================
+void loop() {
+  // --- Handle WiFi Reconnection ---
+  if (WiFi.status() != WL_CONNECTED) {
+    isReady = false;
+    indicateBusy(); // Indicate network issue
+    Serial.println("WiFi Disconnected. Reconnecting...");
+    connectWiFi();
+    if(WiFi.status() == WL_CONNECTED) {
+        indicateReady();
+        isReady = true;
+    }
+    return; // Wait for reconnection
+  }
+
+  // --- Check for Return Button Press ---
+  handleReturnButton(); // Non-blocking check
+
+  // --- Card Reading Logic (only if ready and cooldown passed) ---
+  if (isReady && (millis() - lastCardReadTime > cardReadCooldown)) {
+    String uid = readCardUID();
+    if (uid.length() > 0) {
+      lastCardReadTime = millis(); // Reset cooldown timer
+      isReady = false;          // Busy processing
+      indicateBusy();           // Show busy state
+      Serial.print("Card Read. UID: ");
+      Serial.println(uid);
+
+      // --- Request Loan Authorization ---
+      if (requestLoanAuthorization(uid)) {
+        Serial.println("Loan Authorized by Backend.");
+        unlockUmbrella();
+        indicateSuccess(); // Blink green
+      } else {
+        Serial.println("Loan Denied by Backend.");
+        indicateFailure(); // Blink red
+      }
+
+      // --- Return to Ready State ---
+      delay(2000); // Brief delay to show status
+      indicateReady();
+      isReady = true;
+    }
+  }
+
+  // Add small delay to prevent busy-waiting
+  delay(50);
+}
+
+// =========================
+//    WIFI CONNECTION
+// =========================
+void connectWiFi() {
+  Serial.print("Connecting to WiFi SSID: ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
+
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 20) { // Timeout after ~10 seconds
+    delay(500);
+    Serial.print(".");
+    attempts++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWiFi Connected!");
+    Serial.print("IP Address: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("\nWiFi Connection Failed!");
+    // Consider adding a more robust error handling/retry mechanism
+  }
+}
+
+// =========================
+//     READ RFID/NFC CARD
+// =========================
+String readCardUID() {
+  // Look for new cards
+  if (!mfrc522.PICC_IsNewCardPresent() || !mfrc522.PICC_ReadCardSerial()) {
+    return ""; // No card or failed to read
+  }
+
+  String uid = "";
+  for (byte i = 0; i < mfrc522.uid.size; i++) {
+    uid += String(mfrc522.uid.uidByte[i] < 0x10 ? "0" : "");
+    uid += String(mfrc522.uid.uidByte[i], HEX);
+  }
+  uid.toUpperCase();
+
+  mfrc522.PICC_HaltA();      // Halt PICC
+  mfrc522.PCD_StopCrypto1(); // Stop encryption on PCD
+
+  return uid;
+}
+
+
+// =================================
+//   REQUEST LOAN FROM BACKEND
+// =================================
+bool requestLoanAuthorization(String userUid) {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Loan Request Failed: No WiFi");
+    return false;
+  }
+
+  HTTPClient http;
+  String apiEndpoint = "https://" + String(backend_host) + "/api/dispenser/request-loan"; // HTTPS
+  String jsonPayload;
+
+  // Construct JSON payload
+  StaticJsonDocument<200> doc; // Adjust size as needed
+  doc["userUid"] = userUid;
+  doc["stationId"] = station_id;
+  serializeJson(doc, jsonPayload);
+
+  Serial.print("Requesting Loan Authorization: ");
+  Serial.println(apiEndpoint);
+  Serial.print("Payload: ");
+  Serial.println(jsonPayload);
+
+
+  // Specify endpoint and certificate (use insecure for testing ONLY if necessary)
+  http.begin(apiEndpoint); // Automatically uses root CA bundle on ESP32
+  // For testing without proper cert setup (NOT RECOMMENDED FOR PRODUCTION):
+  // http.begin(apiEndpoint); // http.setInsecure();
+
+  // --- Add Headers ---
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("X-ESP32-API-Key", api_key); // ** Authentication Header **
+
+  // --- Send POST Request ---
+  int httpCode = http.POST(jsonPayload);
+
+  bool authorized = false;
+
+  if (httpCode > 0) {
+    Serial.printf("[HTTP] POST... code: %d\n", httpCode);
+
+    if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_CREATED) {
+      String responsePayload = http.getString();
+      Serial.println("[HTTP] Response:");
+      Serial.println(responsePayload);
+
+      // --- Parse JSON Response ---
+      StaticJsonDocument<256> responseDoc; // Adjust size as needed
+      DeserializationError error = deserializeJson(responseDoc, responsePayload);
+
+      if (error) {
+        Serial.print("deserializeJson() failed: ");
+        Serial.println(error.c_str());
+      } else {
+        authorized = responseDoc["authorized"] | false; // Default to false if missing
+        const char* message = responseDoc["message"] | "No message";
+        Serial.print("Backend Message: ");
+        Serial.println(message);
+        // Potentially display message on a screen
+      }
+    } else {
+         Serial.printf("[HTTP] POST... failed, error: %s\n", http.errorToString(httpCode).c_str());
+         String responsePayload = http.getString(); // Get error response body
+         Serial.println("[HTTP] Error Response Body:");
+         Serial.println(responsePayload);
+    }
+  } else {
+    Serial.printf("[HTTP] POST... failed, error: %s\n", http.errorToString(httpCode).c_str());
+  }
+
+  http.end();
+  return authorized;
+}
+
+// ===================================
+//   NOTIFY UMBRELLA RETURN
+// ===================================
+bool notifyReturn() {
+   if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Return Notification Failed: No WiFi");
+    return false;
+  }
+
+  HTTPClient http;
+  String apiEndpoint = "https://" + String(backend_host) + "/api/dispenser/return-loan"; // HTTPS
+  String jsonPayload;
+
+  // --- Find User UID (THIS IS THE CHALLENGE WITHOUT SCANNING AGAIN) ---
+  // ** Option 1 (Best): Require card scan on return **
+  //    - Prompt user to scan card again.
+  //    - Call `readCardUID()` here. If successful, proceed.
+  // ** Option 2 (Less Ideal): Assume last user (Risky if multiple interactions) **
+  //    - You *could* store the last authorized UID, but it's unreliable.
+  // ** Option 3 (Needs Hardware): Unique Umbrella ID **
+  //    - Read a tag on the umbrella itself.
+  // ----
+  // ** Assuming Option 1 for this example - you MUST implement the card read logic here **
+  Serial.println("Please scan your card again to confirm return.");
+  indicateBusy(); // Ask for card
+  String userUid = "";
+  unsigned long returnScanStartTime = millis();
+  while (userUid.length() == 0 && (millis() - returnScanStartTime < 15000)) { // 15s timeout
+      userUid = readCardUID();
+      delay(100); // Small delay
+  }
+
+  if (userUid.length() == 0) {
+      Serial.println("Return Failed: No card scanned for confirmation.");
+      indicateFailure();
+      delay(1500);
+      indicateReady();
+      return false;
+  }
+  Serial.print("Return Confirmed by User UID: ");
+  Serial.println(userUid);
+  // --- End of User UID retrieval ---
+
+
+  // Construct JSON payload
+  StaticJsonDocument<200> doc; // Adjust size as needed
+  doc["stationId"] = station_id;
+  doc["userUid"] = userUid; // Include the user ID
+  serializeJson(doc, jsonPayload);
+
+  Serial.print("Notifying Umbrella Return: ");
+  Serial.println(apiEndpoint);
+  Serial.print("Payload: ");
+  Serial.println(jsonPayload);
+
+  http.begin(apiEndpoint);
+  // http.setInsecure(); // TESTING ONLY
+
+  // --- Add Headers ---
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("X-ESP32-API-Key", api_key); // ** Authentication Header **
+
+  // --- Send POST Request ---
+  int httpCode = http.POST(jsonPayload);
+  bool success = false;
+
+  if (httpCode > 0) {
+    Serial.printf("[HTTP] Return POST... code: %d\n", httpCode);
+    String responsePayload = http.getString();
+    Serial.println("[HTTP] Response:");
+    Serial.println(responsePayload);
+
+    if (httpCode == HTTP_CODE_OK) {
+       StaticJsonDocument<128> responseDoc;
+       deserializeJson(responseDoc, responsePayload);
+       success = responseDoc["success"] | false;
+       const char* message = responseDoc["message"] | "No message";
+       Serial.print("Backend Message: ");
+       Serial.println(message);
+       if(success) {
+           Serial.println("Return Successfully Processed by Backend.");
+       } else {
+            Serial.println("Backend Indicated Return Failure.");
+       }
+    } else {
+         Serial.printf("[HTTP] Return POST... failed, error: %s\n", http.errorToString(httpCode).c_str());
+    }
+  } else {
+    Serial.printf("[HTTP] Return POST... failed, error: %s\n", http.errorToString(httpCode).c_str());
+  }
+
+  http.end();
+  return success;
+}
+
+
+// =========================
+//  UMBRELLA RELEASE MECHANISM
+// =========================
+void unlockUmbrella() {
+  Serial.println("Activating Unlock Mechanism...");
+  #ifdef SERVO_PIN
+    // Example: Move servo to unlock position, wait, move back
+    umbrellaServo.write(90); // Adjust angle as needed for unlocking
+    delay(UNLOCK_DURATION_MS);
+    umbrellaServo.write(0); // Return to locked position
+  #else
+    // Implement logic for your specific mechanism (e.g., toggle a GPIO for solenoid)
+    // digitalWrite(SOLENOID_PIN, HIGH);
+    // delay(UNLOCK_DURATION_MS);
+    // digitalWrite(SOLENOID_PIN, LOW);
+  #endif
+  Serial.println("Unlock Mechanism Cycle Complete.");
+}
+
+// =========================
+//     STATUS INDICATORS
+// =========================
+void indicateSuccess() {
+  digitalWrite(LED_GREEN_PIN, HIGH);
+  digitalWrite(LED_RED_PIN, LOW);
+  // Optional: Blink green few times
+  for (int i = 0; i < 3; i++) {
+      delay(250);
+      digitalWrite(LED_GREEN_PIN, LOW);
+      delay(250);
+      digitalWrite(LED_GREEN_PIN, HIGH);
+  }
+}
+
+void indicateFailure() {
+  digitalWrite(LED_GREEN_PIN, LOW);
+  digitalWrite(LED_RED_PIN, HIGH);
+   // Optional: Blink red few times
+   for (int i = 0; i < 3; i++) {
+      delay(250);
+      digitalWrite(LED_RED_PIN, LOW);
+      delay(250);
+      digitalWrite(LED_RED_PIN, HIGH);
+  }
+}
+
+void indicateBusy() {
+  // Example: Both LEDs on briefly or a specific color (e.g., yellow if available)
+  digitalWrite(LED_GREEN_PIN, HIGH);
+  digitalWrite(LED_RED_PIN, HIGH);
+}
+
+void indicateReady() {
+  digitalWrite(LED_GREEN_PIN, HIGH); // Solid green = ready
+  digitalWrite(LED_RED_PIN, LOW);
+}
+
+// =========================
+//  HANDLE RETURN BUTTON
+// =========================
+void handleReturnButton() {
+    static unsigned long lastDebounceTime = 0;
+    static int lastButtonState = HIGH;
+    const long debounceDelay = 50; // milliseconds
+
+    int reading = digitalRead(RETURN_BUTTON_PIN);
+
+    // If the switch changed, due to noise or pressing:
+    if (reading != lastButtonState) {
+        lastDebounceTime = millis(); // reset the debouncing timer
+    }
+
+    if ((millis() - lastDebounceTime) > debounceDelay) {
+        // whatever the reading is at, it's been there for longer than the debounce
+        // delay, so take it as the actual current state:
+
+        // if the button state has changed:
+        if (reading != lastButtonState) {
+            lastButtonState = reading;
+
+            // only toggle the LED if the new button state is LOW (pressed)
+            if (lastButtonState == LOW) {
+                Serial.println("Return Button Pressed - Initiating Return Process...");
+                isReady = false; // Station busy processing return
+                indicateBusy();
+
+                if (notifyReturn()) {
+                    indicateSuccess(); // Indicate successful return notification
+                } else {
+                    indicateFailure(); // Indicate failed return notification
+                }
+                delay(2000); // Show status
+                indicateReady();
+                isReady = true;
+            }
+        }
+    }
+     lastButtonState = reading; // Save the current state for next loop
+}
+```
+
+## 5. Key Implementation Points and Considerations:
+
+*   **HTTPS:** The `HTTPClient` on ESP32 usually supports HTTPS out-of-the-box by using the included root CA certificate bundle. Ensure your backend has a valid SSL/TLS certificate. For testing, you might temporarily use `http.setInsecure()`, but **never** do this in production.
+*   **API Key:** The `X-ESP32-API-Key` header is crucial for authenticating the ESP32 with the backend. Keep this key secure.
+*   **Error Handling:** The provided code includes basic error handling for WiFi connection and HTTP requests. Add more robust error handling (e.g., retries, logging specific error codes, indicating errors via LED).
+*   **JSON Parsing:** `ArduinoJson` is used to parse the backend's response. Ensure the `StaticJsonDocument` size is sufficient for the expected response payload. Handle potential parsing errors.
+*   **RFID/NFC Reader Library:** Replace the `MFRC522` example code with the appropriate functions for your specific reader library if you are using a different model (like PN532).
+*   **Return Mechanism:** The most significant challenge is reliably identifying the user during the return process.
+    *   **Recommended:** Modify `notifyReturn()` to require the user to scan their card again. This is the most secure way to associate the return with the correct user.
+    *   **Alternative (if card scan on return isn't feasible):** You might need a system where the ESP32 knows *which specific umbrella slot* was used or read a unique ID directly from the returned umbrella. This requires more complex hardware/software on the station. The current `notifyReturn` function includes a placeholder for requiring a card scan again. **You must implement the actual card reading logic within that function.**
+*   **State Management:** Use the `isReady` flag and indicator LEDs (`indicateReady`, `indicateBusy`, etc.) to provide clear feedback to the user and prevent multiple simultaneous operations.
+*   **Debouncing:** The `handleReturnButton` function includes simple debouncing to avoid multiple triggers from a single button press.
+*   **Non-Blocking Code:** Avoid long `delay()` calls in the main loop where possible, especially during network operations. The `HTTPClient` library handles requests asynchronously in the background. The return button check is also non-blocking.
+*   **Power Management:** Consider ESP32's deep sleep modes to save power if the station runs on battery, waking it up on card presentation or button press. This adds complexity.
+*   **Over-the-Air (OTA) Updates:** For easier firmware updates in production, implement OTA update functionality.
+
+By following this guide and adapting the code snippets to your specific hardware and requirements, you can successfully integrate your ESP32 stations with the PanAguas backend. Remember to prioritize security and robust error handling throughout the development process.

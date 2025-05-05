@@ -19,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es"> {/* Set language to Spanish */}
+    <html lang="es">{/* Set language to Spanish */}
       {/* Removed whitespace here */}
       <body className={`${inter.variable} font-sans antialiased`}> {/* Apply Inter font */}
         <AuthProvider> {/* Wrap with AuthProvider */}

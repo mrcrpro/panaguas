@@ -10,12 +10,13 @@ const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 
 // Throw a more specific error if required variables are missing
 if (!apiKey || !authDomain || !projectId) {
-  console.error("Firebase Config Error: Missing environment variables.");
+  console.error("Firebase Config Error: Missing required environment variables."); // Slightly reworded
   console.error("Required:", {
-    NEXT_PUBLIC_FIREBASE_API_KEY: apiKey ? 'Set' : 'Missing',
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: authDomain ? 'Set' : 'Missing',
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID: projectId ? 'Set' : 'Missing',
+    NEXT_PUBLIC_FIREBASE_API_KEY: apiKey ? 'Set' : 'MISSING', // Uppercase for emphasis
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: authDomain ? 'Set' : 'MISSING',
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: projectId ? 'Set' : 'MISSING',
   });
+  console.error("Please ensure these variables are correctly set in your .env.local file or environment configuration."); // Added instruction
   throw new Error(
     "Missing Firebase configuration. Ensure NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, and NEXT_PUBLIC_FIREBASE_PROJECT_ID environment variables are correctly set in your .env.local file or environment."
   );
@@ -38,8 +39,8 @@ if (!getApps().length) {
         app = initializeApp(firebaseConfig);
     } catch (error: any) {
         console.error("Firebase initialization error:", error);
-        // Provide more context for the error. The 'auth/invalid-api-key' often stems from incorrect config values.
-        throw new Error(`Firebase initialization failed: ${error.message}. Please double-check your Firebase project settings and ensure the environment variables (NEXT_PUBLIC_FIREBASE_*) match exactly.`);
+        // Provide more context for the error.
+        throw new Error(`Firebase initialization failed: ${error.message}. Please double-check your Firebase project settings and ensure the environment variables (NEXT_PUBLIC_FIREBASE_*) in your .env.local or environment configuration match exactly.`); // Enhanced error
     }
 } else {
     app = getApp(); // Get the already initialized app

@@ -47,7 +47,7 @@ export function Navbar() {
            <Link href="/donate" passHref legacyBehavior>
              <Button variant="ghost" className="text-foreground/80 hover:text-foreground">Donar</Button>
            </Link>
-          <Link href="/stations" passHref legacyBehavior> {/* Changed href to /stations */}
+          <Link href="/stations" passHref> {/* Removed legacyBehavior */}
             <Button variant="ghost" className="text-foreground/80 hover:text-foreground">Estaciones</Button> {/* Changed text to Estaciones */}
           </Link>
 
@@ -85,3 +85,4 @@ export function Navbar() {
     </nav>
   );
 }
+

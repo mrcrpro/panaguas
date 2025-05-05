@@ -25,8 +25,9 @@ export default function MapPage() {
   ];
 
   return (
+    // Removed redundant container mx-auto px-4 here, as it's handled by the main layout
     <section className="py-12 md:py-20">
-      <div className="container mx-auto px-4">
+      {/* Section content now directly uses the layout's container */}
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-primary mb-4">Mapa de Estaciones PanAguas</h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -72,9 +73,6 @@ export default function MapPage() {
             </Card>
           ))}
         </div>
-
-      </div>
     </section>
   );
 }
-

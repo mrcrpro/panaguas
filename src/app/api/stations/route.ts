@@ -32,10 +32,11 @@ export async function GET() {
     try {
         console.log("API Route /api/stations: Attempting to fetch stations data from Firestore...");
 
-        // Ensure firestoreAdmin is initialized (handled in admin-config.ts, but good practice)
+        // Ensure firestoreAdmin is initialized (handled in admin-config.ts, but crucial check here)
         if (!firestoreAdmin) {
             console.error("API Route /api/stations: Firestore Admin is not initialized!");
-            throw new Error("Firestore Admin service is unavailable.");
+            // This indicates a server configuration problem (likely missing env vars)
+            throw new Error("Firebase Admin service is unavailable due to initialization failure. Check server logs.");
         }
 
         const stationsRef = firestoreAdmin.collection('stations');
@@ -84,7 +85,12 @@ export async function GET() {
         });
 
         console.log(`API Route /api/stations: Successfully mapped ${stationsData.length} stations.`);
-        return NextResponse.json(stationsData, { status: 200 });
+        return NextResponse.json(stationsData, {
+             status: 200,
+             headers: { // Add caching headers
+                 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120', // Cache for 60s, allow stale for 120s
+             },
+        });
 
     } catch (error: any) { // Catch any type
         console.error("------------------------------------------");

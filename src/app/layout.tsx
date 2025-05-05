@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Navbar } from '@/components/layout/navbar'; // Import Navbar
 import { Footer } from '@/components/layout/footer'; // Import Footer
 import { ThemeProvider } from '@/components/theme-provider'; // Import ThemeProvider
+import QueryProvider from '@/context/query-provider'; // Import QueryProvider
 
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -24,20 +25,22 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning> {/* Add suppressHydrationWarning */}
       <body className={`${inter.variable} font-sans antialiased flex flex-col min-h-screen`}>
-        <ThemeProvider
+         <ThemeProvider
             attribute="class"
             defaultTheme="system"
             enableSystem
             disableTransitionOnChange
           >
-          <AuthProvider>
-            <Navbar /> {/* Add Navbar */}
-            <main className="flex-grow container mx-auto px-4 py-8"> {/* Add main content wrapper */}
-              {children}
-            </main>
-            <Footer /> {/* Add Footer */}
-            <Toaster />
-          </AuthProvider>
+          <QueryProvider> {/* Wrap with QueryProvider */}
+              <AuthProvider>
+                <Navbar /> {/* Add Navbar */}
+                <main className="flex-grow container mx-auto px-4 py-8"> {/* Add main content wrapper */}
+                  {children}
+                </main>
+                <Footer /> {/* Add Footer */}
+                <Toaster />
+              </AuthProvider>
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

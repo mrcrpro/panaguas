@@ -1,26 +1,24 @@
 
 "use client";
 
-import { useAuth } from "@/context/auth-context";
-import { LoginForm } from "@/components/auth/login-form";
-import { WelcomeScreen } from "@/components/dashboard/welcome-screen";
-import { Toaster } from "@/components/ui/toaster";
+import { HeroSection } from "@/components/landing/hero-section";
+import { HowItWorksSection } from "@/components/landing/how-it-works-section";
+import { ImpactSection } from "@/components/landing/impact-section";
+// Removed unused imports: useAuth, LoginForm, WelcomeScreen
+import { Toaster } from "@/components/ui/toaster"; // Keep Toaster if needed globally, or move if specific
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  // const { user, loading } = useAuth(); // No longer needed here directly
 
-  // Optional: Add a loading indicator if preferred over the context's skeleton
-  // if (loading) {
-  //   return <div className="flex min-h-screen items-center justify-center"><p>Cargando...</p></div>;
-  // }
+  // Loading state handled by AuthProvider in layout
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-br from-background to-muted/30">
-       <h1 className="text-4xl font-bold mb-8 text-center text-secondary drop-shadow-sm">
-            Panaguas Portal
-       </h1>
-      {user ? <WelcomeScreen /> : <LoginForm />}
-      <Toaster />
-    </main>
+    <> {/* Using Fragment as main wrapper now */}
+      <HeroSection />
+      <HowItWorksSection />
+      <ImpactSection />
+      {/* Login/Welcome logic is now handled via Navbar/protected routes */}
+      <Toaster /> {/* Keep if global toasts are desired */}
+    </>
   );
 }

@@ -1,4 +1,6 @@
 import type { Config } from "tailwindcss";
+import { fontFamily } from "tailwindcss/defaultTheme"; // Import default theme for font fallback
+
 
 export default {
     darkMode: ["class"],
@@ -8,7 +10,17 @@ export default {
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
+    container: { // Added container configuration
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
   	extend: {
+      fontFamily: { // Added font family
+        sans: ["var(--font-inter)", ...fontFamily.sans], // Use Inter font defined in layout
+      },
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
@@ -95,7 +107,17 @@ export default {
                 '0%, 100%': { transform: 'translateX(0)' },
                 '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-3px)' },
                 '20%, 40%, 60%, 80%': { transform: 'translateX(3px)' },
-            }
+            },
+             'bounce-slow': { // Added bounce-slow keyframes
+                '0%, 100%': {
+                    transform: 'translateY(-5%)',
+                    animationTimingFunction: 'cubic-bezier(0.8,0,1,1)',
+                 },
+                '50%': {
+                    transform: 'translateY(0)',
+                    animationTimingFunction: 'cubic-bezier(0,0,0.2,1)',
+                },
+             }
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
@@ -105,8 +127,9 @@ export default {
             'shake': 'shake 0.3s linear',
              // Added spin for loading icons from tailwindcss-animate plugin
             'spin': 'spin 1s linear infinite',
+            'bounce-slow': 'bounce-slow 3s infinite', // Added bounce-slow animation
   		}
   	}
   },
-  plugins: [require("tailwindcss-animate")],
+   plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")], // Added typography plugin
 } satisfies Config;

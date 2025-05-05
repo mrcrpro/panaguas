@@ -20,6 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es"> {/* Set language to Spanish */}
+      {/* Removed whitespace here */}
       <body className={`${inter.variable} font-sans antialiased`}> {/* Apply Inter font */}
         <AuthProvider> {/* Wrap with AuthProvider */}
           {children}

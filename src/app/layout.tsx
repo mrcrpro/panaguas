@@ -12,8 +12,8 @@ import { ThemeProvider } from '@/components/theme-provider'; // Import ThemeProv
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'PanAguas - Universidad de los Andes', // Updated title
-  description: 'Sistema de préstamo gratuito de paraguas automatizado en la Universidad de los Andes.', // Updated description
+  title: 'Panaguas Portal', // Updated title
+  description: 'Portal de inicio de sesión y donaciones de Panaguas.', // Updated description
 };
 
 export default function RootLayout({

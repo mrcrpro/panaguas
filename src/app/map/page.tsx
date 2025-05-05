@@ -1,15 +1,27 @@
 
 import { MapPin, Umbrella } from 'lucide-react';
-import Image from 'next/image';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import MapComponent from '@/components/map/map-component'; // Import the MapComponent
+
+// Define Station type (matching the one in map-component.tsx)
+interface Station {
+  id: number;
+  name: string;
+  location: string;
+  status: string;
+  available: number;
+  coords: [number, number]; // Add coordinates field
+}
+
 
 export default function MapPage() {
   // Placeholder data for stations - Replace with actual data fetching
-  const stations = [
-    { id: 1, name: 'Estación SD', location: 'Edificio Santo Domingo', status: 'Operativa', available: 5 },
-    { id: 2, name: 'Estación ML', location: 'Edificio Mario Laserna', status: 'Mantenimiento', available: 0 },
-    { id: 3, name: 'Estación W', location: 'Entrada Edificio W', status: 'Operativa', available: 8 },
-     { id: 4, name: 'Estación Lleras', location: 'Plazoleta Lleras', status: 'Operativa', available: 3 },
+  // Added approximate coordinates for Uniandes locations
+   const stations: Station[] = [
+    { id: 1, name: 'Estación SD', location: 'Edificio Santo Domingo', status: 'Operativa', available: 5, coords: [4.6036, -74.0653] }, // Approx. coords
+    { id: 2, name: 'Estación ML', location: 'Edificio Mario Laserna', status: 'Mantenimiento', available: 0, coords: [4.6020, -74.0650] }, // Approx. coords
+    { id: 3, name: 'Estación W', location: 'Entrada Edificio W', status: 'Operativa', available: 8, coords: [4.6015, -74.0665] }, // Approx. coords
+    { id: 4, name: 'Estación Lleras', location: 'Plazoleta Lleras', status: 'Operativa', available: 3, coords: [4.6028, -74.0668] }, // Approx. coords
   ];
 
   return (
@@ -22,41 +34,18 @@ export default function MapPage() {
           </p>
         </div>
 
-        {/* Placeholder for Interactive Map or Illustrated Map */}
+        {/* Interactive Map */}
         <Card className="mb-12 overflow-hidden shadow-lg border-secondary">
           <CardHeader className="bg-secondary/10">
             <CardTitle className="text-secondary flex items-center">
                 <MapPin className="mr-2 h-5 w-5" />
                 Campus Universitario - Ubicación de Estaciones
             </CardTitle>
+             <CardDescription>Haz clic en un marcador para ver detalles.</CardDescription>
           </CardHeader>
-          <CardContent className="p-0">
-            {/* Replace with actual map component (e.g., Leaflet, Mapbox GL JS, Google Maps) or an illustration */}
-             <div className="relative w-full h-64 md:h-96 bg-muted flex items-center justify-center">
-                 {/* Placeholder Image */}
-                <Image
-                    src="https://picsum.photos/1200/600" // Replace with a campus map illustration URL
-                    alt="Mapa del Campus Uniandes con estaciones PanAguas"
-                    layout="fill"
-                    objectFit="cover"
-                    data-ai-hint="university campus map illustration"
-                 />
-                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                     <p className="text-background text-xl font-semibold p-4 bg-black/50 rounded">
-                        Mapa Interactivo Próximamente
-                     </p>
-                 </div>
-                 {/* Example station markers (replace with dynamic markers on a real map) */}
-                <div className="absolute top-1/4 left-1/4 transform -translate-x-1/2 -translate-y-1/2 text-primary">
-                    <Umbrella className="h-8 w-8 drop-shadow-lg"/>
-                 </div>
-                 <div className="absolute bottom-1/3 right-1/3 transform translate-x-1/2 translate-y-1/2 text-primary">
-                    <Umbrella className="h-8 w-8 drop-shadow-lg"/>
-                 </div>
-                  <div className="absolute top-1/3 right-1/4 transform translate-x-1/2 -translate-y-1/2 text-destructive">
-                     <MapPin className="h-8 w-8 drop-shadow-lg"/> {/* Example maintenance marker */}
-                 </div>
-            </div>
+           <CardContent className="p-0"> {/* Remove padding for map */}
+             {/* Use the MapComponent */}
+             <MapComponent stations={stations} />
           </CardContent>
         </Card>
 
@@ -64,7 +53,7 @@ export default function MapPage() {
         <h2 className="text-2xl font-semibold text-center mb-6 text-secondary">Listado de Estaciones</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {stations.map((station) => (
-            <Card key={station.id} className={`border ${station.status === 'Operativa' ? 'border-green-500' : 'border-destructive/50'}`}>
+             <Card key={station.id} className={`border ${station.status === 'Operativa' ? 'border-green-500/50 dark:border-green-600/60' : 'border-destructive/50'}`}>
               <CardHeader>
                  <CardTitle className="text-lg flex justify-between items-center">
                     {station.name}
@@ -75,9 +64,10 @@ export default function MapPage() {
                  <p className="text-sm text-muted-foreground">{station.location}</p>
               </CardHeader>
               <CardContent>
-                <p className="text-sm">
-                  Paraguas disponibles: {station.status === 'Operativa' ? station.available : 'N/A'}
-                </p>
+                <p className="text-sm flex items-center">
+                   <Umbrella className={`mr-2 h-4 w-4 ${station.status === 'Operativa' ? 'text-blue-500' : 'text-muted-foreground'}`}/>
+                   Paraguas disponibles: {station.status === 'Operativa' ? station.available : 'N/A'}
+                 </p>
               </CardContent>
             </Card>
           ))}
@@ -87,3 +77,4 @@ export default function MapPage() {
     </section>
   );
 }
+

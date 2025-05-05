@@ -36,9 +36,17 @@ export default function StationsPage() {
         const response = await fetch('/api/stations'); // Fetch from the API route
         console.log("Fetch response status:", response.status);
         if (!response.ok) {
-            const errorData = await response.text(); // Get more error details
-            console.error("Failed to fetch stations:", response.status, response.statusText, errorData);
-            throw new Error(`Failed to fetch stations: ${response.statusText} - ${errorData}`);
+            const errorText = await response.text(); // Get error response body as text
+            console.error("Failed to fetch stations:", response.status, response.statusText, errorText);
+            // Try to parse JSON for more details, otherwise use text
+            let errorDetails = errorText;
+            try {
+                 const errorJson = JSON.parse(errorText);
+                 errorDetails = errorJson.message || errorJson.errorDetails || errorText;
+            } catch (parseError) {
+                 // Ignore parsing error, use the raw text
+            }
+             throw new Error(`Error ${response.status}: ${response.statusText}. ${errorDetails}`);
         }
         const data: Station[] = await response.json();
         console.log("Stations data received:", data);

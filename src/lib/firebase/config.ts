@@ -1,4 +1,5 @@
 
+
 import { initializeApp, getApps, getApp, type FirebaseOptions } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
@@ -10,10 +11,9 @@ const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 
 // Throw a more specific error if required variables are missing
 if (!apiKey || !authDomain || !projectId) {
-  // The console logs are removed as the error thrown below provides sufficient information.
-  // It's expected that these might be missing during initial setup.
+  // Removed console.error logs as the Error provides the necessary info
   throw new Error(
-    "Missing Firebase configuration. Ensure NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, and NEXT_PUBLIC_FIREBASE_PROJECT_ID environment variables are correctly set in your .env.local file or environment. See the README or .env.local.example for more details."
+    "Missing Firebase configuration. Ensure NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, and NEXT_PUBLIC_FIREBASE_PROJECT_ID environment variables are correctly set in your .env.local file or environment."
   );
 }
 
@@ -32,13 +32,14 @@ let app;
 if (!getApps().length) {
     try {
         app = initializeApp(firebaseConfig);
+        console.log("Firebase Client SDK initialized successfully."); // Keep success log
     } catch (error: any) {
-        console.error("Firebase initialization error:", error);
-        // Provide more context for the error.
-        throw new Error(`Firebase initialization failed: ${error.message}. Please double-check your Firebase project settings and ensure the environment variables (NEXT_PUBLIC_FIREBASE_*) in your .env.local or environment configuration match exactly.`); // Enhanced error
+        console.error("Firebase Client SDK initialization error:", error); // Keep error log
+        throw new Error(`Firebase Client SDK initialization failed: ${error.message}. Please double-check your Firebase project settings and ensure the environment variables (NEXT_PUBLIC_FIREBASE_*) in your .env.local or environment configuration match exactly.`); // Enhanced error
     }
 } else {
     app = getApp(); // Get the already initialized app
+    // console.log("Firebase Client SDK already initialized."); // Optional: Log if already initialized
 }
 
 
@@ -50,9 +51,9 @@ try {
     auth = getAuth(app);
     db = getFirestore(app);
 } catch (error: any) {
-     console.error("Error getting Firebase services (Auth/Firestore):", error);
+     console.error("Error getting Firebase Client services (Auth/Firestore):", error);
      // Rethrow to make the issue clear during development/build.
-     throw new Error(`Failed to get Firebase services (Auth/Firestore): ${error.message}. This usually indicates a problem with the Firebase App initialization. Check previous logs for details.`);
+     throw new Error(`Failed to get Firebase Client services (Auth/Firestore): ${error.message}. This usually indicates a problem with the Firebase App initialization. Check previous logs for details.`);
 }
 
 

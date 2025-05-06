@@ -1,4 +1,3 @@
-
 "use client"; // Needs client-side hooks for data fetching
 
 import { useQuery } from '@tanstack/react-query';
@@ -64,6 +63,7 @@ export default function StationsPage() {
 
   return (
     <section className="py-12 md:py-20">
+      <div className="container mx-auto px-4"> {/* Added container for padding */}
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-primary mb-4">Estaciones PanAguas</h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -93,20 +93,28 @@ export default function StationsPage() {
          )}
 
          {/* Error Message or No Stations Found Message */}
-         {(isError || (!isLoading && stations.length === 0)) && (
-            <Alert variant={isError ? "destructive" : "default"} className="max-w-2xl mx-auto bg-muted/50">
-                 {isError ? <AlertTriangle className="h-4 w-4" /> : <Info className="h-4 w-4" />}
-                 <AlertTitle>{isError ? "Error al Cargar Estaciones" : "Información"}</AlertTitle>
-                 <AlertDescription>
-                     {workInProgressMessage}
-                     {/* Optionally show technical error details in development or behind a toggle */}
-                     {/* {isError && process.env.NODE_ENV === 'development' && error && (
-                         <p className="text-xs mt-2">Detalles del error: {error.message}</p>
-                     )} */}
-                     {isError && error && <p className="text-xs mt-2">Detalles del error: {error.message}</p>}
+         {isError && ( // Display only when there is an actual error
+             <Alert variant="destructive" className="max-w-2xl mx-auto bg-destructive/10 border-destructive/30">
+                 <AlertTriangle className="h-4 w-4 text-destructive" />
+                 <AlertTitle className="text-destructive">Error al Cargar Estaciones</AlertTitle>
+                 <AlertDescription className="text-destructive/90">
+                      {workInProgressMessage}
+                     {/* Optionally log the technical error to console for debugging */}
+                     {error && console.error("Station fetch error:", error.message)}
                  </AlertDescription>
              </Alert>
          )}
+
+         {/* No Stations Found Message (when not loading and no error, but array is empty) */}
+          {!isLoading && !isError && stations.length === 0 && (
+            <Alert variant="default" className="max-w-2xl mx-auto bg-muted/50 border-border">
+                 <Info className="h-4 w-4" />
+                 <AlertTitle>Información</AlertTitle>
+                 <AlertDescription>
+                     {workInProgressMessage}
+                 </AlertDescription>
+             </Alert>
+          )}
 
 
          {/* Station List */}
@@ -150,6 +158,7 @@ export default function StationsPage() {
             ))}
             </div>
          )}
+        </div> {/* Close container div */}
     </section>
   );
 }

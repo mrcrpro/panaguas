@@ -85,6 +85,7 @@ export default function StationsPage() {
                              <Skeleton className="h-4 w-1/3" />
                              <Skeleton className="h-4 w-full" />
                              <Skeleton className="h-4 w-2/3" />
+                             <Skeleton className="h-2 w-full" /> {/* Skeleton for Progress bar */}
                         </CardContent>
                      </Card>
                  ))}
@@ -98,6 +99,10 @@ export default function StationsPage() {
                  <AlertTitle>{isError ? "Error al Cargar Estaciones" : "Información"}</AlertTitle>
                  <AlertDescription>
                      {workInProgressMessage}
+                     {/* Optionally show technical error details in development or behind a toggle */}
+                     {/* {isError && process.env.NODE_ENV === 'development' && error && (
+                         <p className="text-xs mt-2">Detalles del error: {error.message}</p>
+                     )} */}
                      {isError && error && <p className="text-xs mt-2">Detalles del error: {error.message}</p>}
                  </AlertDescription>
              </Alert>

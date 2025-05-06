@@ -54,8 +54,7 @@ export function HowItWorksSection() {
                         <div className="bg-primary text-primary-foreground rounded-full p-3 shadow-lg mb-2 w-16 h-16 flex items-center justify-center border-4 border-background">
                             <step.icon className="h-8 w-8" />
                         </div>
-                         {/* Connecting line point */}
-                        <div className="absolute left-1/2 top-1/2 w-3 h-3 bg-primary rounded-full border-2 border-background -translate-x-1/2 -translate-y-1/2 hidden md:block"></div>
+                         {/* Connecting line point removed */}
                     </div>
 
 
@@ -86,3 +85,4 @@ export function HowItWorksSection() {
     </section>
   );
 }
+

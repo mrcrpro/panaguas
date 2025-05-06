@@ -14,8 +14,8 @@ const PanAguasLogo = ({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 24 24"
-    fill="none" // Changed from currentColor
-    stroke="currentColor" // Added
+    fill="none" // Ensure fill is none for stroked paths
+    stroke="currentColor" // Use currentColor for stroke
     className={className || "h-6 w-6"}
   >
     <path d="M6.75 9.25C6.75 8.00964 7.75964 7 9 7H15C16.2404 7 17.25 8.00964 17.25 9.25V10.5C17.25 11.9004 17.0443 13.2354 16.6652 14.4676C15.6511 17.734 12.8082 20.7078 12.1585 21.3218C12.0543 21.4201 11.9457 21.4201 11.8415 21.3218C11.1918 20.7078 8.34887 17.734 7.33481 14.4676C6.95574 13.2354 6.75 11.9004 6.75 10.5V9.25Z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -64,7 +64,7 @@ export function Navbar() {
            <Link href="/donate" passHref legacyBehavior>
              <Button variant="ghost" className="text-foreground/80 hover:text-foreground">Donar</Button>
            </Link>
-          <Link href="/stations" passHref>
+          <Link href="/stations" passHref >
             <Button variant="ghost" className="text-foreground/80 hover:text-foreground">Estaciones</Button>
           </Link>
 

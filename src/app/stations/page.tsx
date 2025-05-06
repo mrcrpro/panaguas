@@ -2,7 +2,7 @@
 "use client"; // Needs client-side hooks for data fetching
 
 import { useQuery } from '@tanstack/react-query';
-import { Umbrella, Building, Loader2, AlertTriangle } from 'lucide-react';
+import { Umbrella, Building, Loader2, AlertTriangle, Info } from 'lucide-react'; // Added Info icon
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -60,6 +60,8 @@ export default function StationsPage() {
      return 'text-yellow-500 dark:text-yellow-400'; // Empty but operational
    };
 
+   const workInProgressMessage = "Estamos trabajando en esto para brindarte un mejor servicio, te contactaremos en caso de noticias.";
+
   return (
     <section className="py-12 md:py-20">
         <div className="text-center mb-12">
@@ -89,20 +91,20 @@ export default function StationsPage() {
             </div>
          )}
 
-         {/* Error Message */}
-         {isError && error && (
-            <Alert variant="destructive" className="max-w-2xl mx-auto">
-                 <AlertTriangle className="h-4 w-4" />
-                 <AlertTitle>Error al Cargar Estaciones</AlertTitle>
-                 <AlertDescription>{error.message || "No se pudieron cargar las estaciones."}</AlertDescription>
+         {/* Error Message or No Stations Found Message */}
+         {(isError || (!isLoading && stations.length === 0)) && (
+            <Alert variant={isError ? "destructive" : "default"} className="max-w-2xl mx-auto bg-muted/50">
+                 {isError ? <AlertTriangle className="h-4 w-4" /> : <Info className="h-4 w-4" />}
+                 <AlertTitle>{isError ? "Error al Cargar Estaciones" : "Información"}</AlertTitle>
+                 <AlertDescription>
+                     {workInProgressMessage}
+                     {isError && error && <p className="text-xs mt-2">Detalles del error: {error.message}</p>}
+                 </AlertDescription>
              </Alert>
          )}
 
 
          {/* Station List */}
-         {!isLoading && !isError && stations.length === 0 && (
-             <p className="text-center text-muted-foreground">No se encontraron estaciones configuradas.</p>
-         )}
          {!isLoading && !isError && stations.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {stations.map((station) => (
@@ -146,4 +148,3 @@ export default function StationsPage() {
     </section>
   );
 }
-

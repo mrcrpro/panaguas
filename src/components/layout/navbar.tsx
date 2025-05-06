@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -15,11 +14,15 @@ const PanAguasLogo = ({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 24 24"
-    fill="currentColor"
+    fill="none" // Changed from currentColor
+    stroke="currentColor" // Added
     className={className || "h-6 w-6"}
   >
-    <path d="M12 2C7.95 2 4.51 5.07 4.51 9.13C4.51 14.44 12 22 12 22S19.49 14.44 19.49 9.13C19.49 5.07 16.05 2 12 2ZM12 14.5C10.07 14.5 8.5 12.93 8.5 11C8.5 9.07 10.07 7.5 12 7.5C13.93 7.5 15.5 9.07 15.5 11C15.5 12.93 13.93 14.5 12 14.5ZM12 5.5C10.03 5.5 8.41 6.94 8.08 8.75H7C7 7.1 8.34 5.75 10 5.62V4H14V5.62C15.66 5.75 17 7.1 17 8.75H15.92C15.59 6.94 13.97 5.5 12 5.5ZM10.5 9.5H13.5V10C13.5 11.93 11.93 13.5 10 13.5H9.5V12H10C11.1 12 12 11.1 12 10V9.5H10.5Z" />
-    <path d="M12 9.5C11.17 9.5 10.5 10.17 10.5 11V12H9.5C8.67 12 8 11.33 8 10.5C8 9.67 8.67 9 9.5 9H10C10 7.9 10.9 7 12 7C13.1 7 14 7.9 14 9H14.5C15.33 9 16 9.67 16 10.5C16 11.33 15.33 12 14.5 12H13.5V11C13.5 10.17 12.83 9.5 12 9.5Z" fillRule="evenodd" clipRule="evenodd"/>
+    <path d="M6.75 9.25C6.75 8.00964 7.75964 7 9 7H15C16.2404 7 17.25 8.00964 17.25 9.25V10.5C17.25 11.9004 17.0443 13.2354 16.6652 14.4676C15.6511 17.734 12.8082 20.7078 12.1585 21.3218C12.0543 21.4201 11.9457 21.4201 11.8415 21.3218C11.1918 20.7078 8.34887 17.734 7.33481 14.4676C6.95574 13.2354 6.75 11.9004 6.75 10.5V9.25Z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M9.5 10C9.5 9.17157 10.1716 8.5 11 8.5H13C13.8284 8.5 14.5 9.17157 14.5 10V10.5C14.5 12.1569 13.1569 13.5 11.5 13.5H10.5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M14.5 4.5L14.5 2.5" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M9.5 4.5L9.5 2.5" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M12 5.5L12 2.5" strokeWidth="1.5" strokeLinecap="round"/>
   </svg>
 );
 
@@ -99,4 +102,3 @@ export function Navbar() {
     </nav>
   );
 }
-

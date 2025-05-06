@@ -20,7 +20,7 @@ const donationTiersInfo = [
     title: 'Donador Bajo',
     icon: Star,
     benefit: 'Tiempo de préstamo total: 35 minutos (20 base + 15 extra).',
-    threshold: '≤ $5.000 COP',
+    threshold: '≤ $4.900 COP',
     color: "text-green-600 dark:text-green-400",
   },
   {

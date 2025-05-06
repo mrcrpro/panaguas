@@ -6,7 +6,8 @@ import type { FieldValue, Timestamp } from 'firebase-admin/firestore'; // Import
 
 // Define expected request body structure
 interface LoanRequestBody {
-    userUid: string; // Assuming ESP32 reads student ID/UID directly
+    // Use uniandesCode read from student card
+    uniandesCode: string;
     stationId: string;
 }
 
@@ -21,13 +22,15 @@ interface LoanResponseBody {
 interface UserDoc {
     name?: string;
     email?: string;
+    uniandesCode?: string; // Added uniandesCode
     hasActiveLoan?: boolean;
     fineAmount?: number;
     donationTier?: string;
 }
 
 interface LoanDoc {
-    userId: string;
+    userId: string; // Store Firebase Auth UID here
+    uniandesCode: string; // Store Uniandes Code for reference
     stationId: string;
     loanTime: FieldValue | Timestamp; // Use server timestamp for creation, Timestamp for read
     returnTime?: FieldValue | Timestamp;
@@ -59,8 +62,8 @@ export async function POST(request: NextRequest) {
     let body: LoanRequestBody;
     try {
         body = await request.json();
-        if (!body.userUid || !body.stationId) {
-            throw new Error('Missing userUid or stationId in request body.');
+        if (!body.uniandesCode || !body.stationId) {
+            throw new Error('Missing uniandesCode or stationId in request body.');
         }
         console.log("API Route /api/dispenser/request-loan: Request Body Parsed:", body);
     } catch (error) {
@@ -68,48 +71,66 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ authorized: false, message: 'Solicitud inválida.' }, { status: 400 });
     }
 
-    const { userUid, stationId } = body;
+    const { uniandesCode, stationId } = body;
 
     try {
+        // --- Find User by uniandesCode ---
+        console.log(`API Route /api/dispenser/request-loan: Looking for user with uniandesCode ${uniandesCode}.`);
+        const usersRef = firestoreAdmin.collection('users');
+        // IMPORTANT: Ensure you have a Firestore index on 'uniandesCode' for this query to work efficiently!
+        const userQuery = usersRef.where('uniandesCode', '==', uniandesCode).limit(1);
+        const userQuerySnapshot = await userQuery.get();
+
+        if (userQuerySnapshot.empty) {
+            console.log(`API Route /api/dispenser/request-loan: Validation Failed - User with uniandesCode ${uniandesCode} not found.`);
+            return NextResponse.json({ authorized: false, message: 'Usuario no encontrado.' }, { status: 404 });
+        }
+
+        const userDocSnap = userQuerySnapshot.docs[0];
+        const userUid = userDocSnap.id; // Get the actual Firebase Auth UID
+        const userData = userDocSnap.data() as UserDoc;
+         console.log(`API Route /api/dispenser/request-loan: Found user ${userUid} for code ${uniandesCode}.`);
+
+
         // 3. Start Firestore Transaction
         console.log(`API Route /api/dispenser/request-loan: Starting transaction for user ${userUid} at station ${stationId}.`);
         const loanResult = await firestoreAdmin.runTransaction(async (transaction) => {
-            const userDocRef = firestoreAdmin.collection('users').doc(userUid);
+            const userDocRef = firestoreAdmin.collection('users').doc(userUid); // Use the found UID
             const stationDocRef = firestoreAdmin.collection('stations').doc(stationId);
             const newLoanDocRef = firestoreAdmin.collection('loans').doc(); // Generate new loan ID
 
-            console.log(`API Route /api/dispenser/request-loan: Transaction - Getting user ${userUid} and station ${stationId} documents.`);
-            // Get user and station data within the transaction
-            const [userDocSnap, stationDocSnap] = await Promise.all([
-                transaction.get(userDocRef),
-                transaction.get(stationDocRef)
-            ]);
-            console.log(`API Route /api/dispenser/request-loan: Transaction - Documents retrieved.`);
+            // Get station data within the transaction (user data already fetched)
+            const stationDocSnap = await transaction.get(stationDocRef);
+             console.log(`API Route /api/dispenser/request-loan: Transaction - Station ${stationId} document retrieved.`);
 
             // --- Validation Checks ---
-            if (!userDocSnap.exists) {
-                console.log(`API Route /api/dispenser/request-loan: Validation Failed - User ${userUid} not found.`);
-                return { authorized: false, message: 'Usuario no encontrado.' };
-            }
+            // User existence already checked above
             if (!stationDocSnap.exists) {
                 console.log(`API Route /api/dispenser/request-loan: Validation Failed - Station ${stationId} not found.`);
                 return { authorized: false, message: 'Estación no encontrada.' };
             }
 
-            const userData = userDocSnap.data() as UserDoc;
-            const stationData = stationDocSnap.data() as StationDoc;
+            // Re-fetch user data within transaction for consistency (optional but safer)
+             const freshUserSnap = await transaction.get(userDocRef);
+             if (!freshUserSnap.exists) {
+                 // Should not happen if found initially, but defensive check
+                 console.error(`API Route /api/dispenser/request-loan: CRITICAL - User ${userUid} disappeared during transaction.`);
+                 return { authorized: false, message: 'Error de usuario.' };
+             }
+             const currentTransactionUserData = freshUserSnap.data() as UserDoc;
+             const stationData = stationDocSnap.data() as StationDoc;
 
 
-            // Check for active loan
-            if (userData.hasActiveLoan === true) { // Explicit check
+            // Check for active loan using the most current data
+            if (currentTransactionUserData.hasActiveLoan === true) { // Explicit check
                 console.log(`API Route /api/dispenser/request-loan: Validation Failed - User ${userUid} already has an active loan.`);
                 return { authorized: false, message: 'Ya tienes un préstamo activo.' };
             }
 
-            // Check for fines (example: block if fine > 0)
-            if (userData.fineAmount && userData.fineAmount > 0) {
-                console.log(`API Route /api/dispenser/request-loan: Validation Failed - User ${userUid} has outstanding fine of ${userData.fineAmount}.`);
-                return { authorized: false, message: `Tienes una multa pendiente de $${userData.fineAmount}.` };
+            // Check for fines
+            if (currentTransactionUserData.fineAmount && currentTransactionUserData.fineAmount > 0) {
+                console.log(`API Route /api/dispenser/request-loan: Validation Failed - User ${userUid} has outstanding fine of ${currentTransactionUserData.fineAmount}.`);
+                return { authorized: false, message: `Tienes una multa pendiente de $${currentTransactionUserData.fineAmount}.` };
             }
 
             // Check umbrella availability
@@ -118,7 +139,7 @@ export async function POST(request: NextRequest) {
                 return { authorized: false, message: 'No hay paraguas disponibles en esta estación.' };
             }
 
-             // Check station status (optional, depends if you use a 'status' field)
+             // Check station status
              if (stationData.status && stationData.status !== 'Operativa') {
                  console.log(`API Route /api/dispenser/request-loan: Validation Failed - Station ${stationId} is not operational (Status: ${stationData.status}).`);
                  return { authorized: false, message: `Estación ${stationData.status}.` };
@@ -129,10 +150,11 @@ export async function POST(request: NextRequest) {
 
             // --- Perform Updates (if validation passed) ---
             // Create new loan document
-            const newLoanData: Omit<LoanDoc, 'loanTime'> & { loanTime: FieldValue } = { // Explicitly type for FieldValue
-                userId: userUid,
+            const newLoanData: Omit<LoanDoc, 'loanTime'> & { loanTime: FieldValue } = {
+                userId: userUid, // Store Firebase UID
+                uniandesCode: uniandesCode, // Store Uniandes Code
                 stationId: stationId,
-                loanTime: admin.firestore.FieldValue.serverTimestamp(), // Use server timestamp explicitly
+                loanTime: admin.firestore.FieldValue.serverTimestamp(),
                 isReturned: false,
             };
             transaction.set(newLoanDocRef, newLoanData);
@@ -156,14 +178,15 @@ export async function POST(request: NextRequest) {
             console.log(`API Route /api/dispenser/request-loan: Loan ${loanResult.loanId} authorized successfully for user ${userUid}. Sending 200 response.`);
             return NextResponse.json(loanResult, { status: 200 });
         } else {
-            console.log(`API Route /api/dispenser/request-loan: Loan request denied for user ${userUid}: ${loanResult.message}. Sending 403 response.`);
-            // Use 403 Forbidden for authorization issues, 404 if user/station not found, etc.
-            const status = loanResult.message.includes('no encontrado') ? 404 : 403;
+            console.log(`API Route /api/dispenser/request-loan: Loan request denied for user ${userUid}: ${loanResult.message}. Sending response.`);
+             const status = loanResult.message.includes('no encontrado') ? 404 : 403; // Or 400 for bad request
+             if (loanResult.message.includes('multa')) status = 402; // Payment Required might fit for fines
+             if (loanResult.message.includes('préstamo activo')) status = 409; // Conflict
             return NextResponse.json(loanResult, { status: status });
         }
 
     } catch (error: any) {
-        console.error(`API Route /api/dispenser/request-loan: Critical error processing loan request for user ${userUid} at station ${stationId}:`, error);
+        console.error(`API Route /api/dispenser/request-loan: Critical error processing loan request for code ${uniandesCode} at station ${stationId}:`, error);
         return NextResponse.json({ authorized: false, message: 'Error interno del servidor.' }, { status: 500 });
     }
 }

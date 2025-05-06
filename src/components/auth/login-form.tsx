@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -25,6 +24,7 @@ const loginSchema = z.object({
 const registerSchema = z.object({
     name: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres."}),
     email: z.string().email({ message: "Correo electrónico inválido." }),
+    uniandesCode: z.string().regex(/^\d{8,10}$/, { message: "El código Uniandino debe ser numérico y tener entre 8 y 10 dígitos." }), // Added uniandesCode validation
     password: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres." }),
 });
 
@@ -50,6 +50,7 @@ export function LoginForm() {
       defaultValues: {
           name: "",
           email: "",
+          uniandesCode: "", // Added default value
           password: "",
       }
   })
@@ -79,11 +80,14 @@ export function LoginForm() {
           const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
           const user = userCredential.user;
 
-          // Save user data (name) to Firestore
+          // Save user data (name, email, uniandesCode) to Firestore
           await setDoc(doc(db, "users", user.uid), {
               name: values.name,
               email: values.email,
-              // Add other user details if needed
+              uniandesCode: values.uniandesCode, // Save uniandesCode
+              donationTier: 'Gratuito', // Default donation tier
+              hasActiveLoan: false, // Default loan status
+              fineAmount: 0 // Default fine amount
           });
 
 
@@ -117,6 +121,8 @@ export function LoginForm() {
         return "El inicio de sesión con correo y contraseña no está habilitado.";
       case "auth/weak-password":
         return "La contraseña es demasiado débil.";
+       case "auth/invalid-uniandes-code": // Example custom error
+           return "El código Uniandino no es válido.";
       default:
         return "Ocurrió un error inesperado. Por favor, inténtalo de nuevo.";
     }
@@ -218,6 +224,19 @@ export function LoginForm() {
                  />
                  {registerForm.formState.errors.email && (
                    <p className="text-sm text-destructive">{registerForm.formState.errors.email.message}</p>
+                 )}
+               </div>
+                <div className="space-y-2">
+                 <Label htmlFor="register-uniandesCode">Código Uniandino</Label>
+                 <Input
+                   id="register-uniandesCode"
+                   placeholder="Tu código de estudiante"
+                   {...registerForm.register("uniandesCode")}
+                   disabled={loading}
+                   className="transition-colors duration-200 focus:border-primary"
+                 />
+                 {registerForm.formState.errors.uniandesCode && (
+                   <p className="text-sm text-destructive">{registerForm.formState.errors.uniandesCode.message}</p>
                  )}
                </div>
                <div className="space-y-2">

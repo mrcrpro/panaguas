@@ -7,15 +7,8 @@ import type { FieldValue, Timestamp } from 'firebase-admin/firestore'; // Import
 // Define expected request body structure
 interface ReturnRequestBody {
     stationId: string;
-    // ** Crucial Consideration for Robustness **
-    // Ideally, the ESP32 should identify *which* user's umbrella is being returned.
-    // Options:
-    // 1. User Scans Card Again: ESP32 sends userUid along with stationId. (Simplest if feasible)
-    // 2. Unique Umbrella ID: Each umbrella has an ID (QR/NFC tag) read by the station.
-    // 3. Slot ID: If the station has numbered slots, the ESP32 sends the slot ID.
-    // ---
-    // **For this implementation, we'll assume Option 1: userUid is provided.**
-    userUid: string;
+    // Use uniandesCode to identify the user returning the umbrella
+    uniandesCode: string;
 }
 
 // Define possible response structures
@@ -28,13 +21,15 @@ interface ReturnResponseBody {
 interface UserDoc {
     name?: string;
     email?: string;
+    uniandesCode?: string; // Added uniandesCode
     hasActiveLoan?: boolean;
     fineAmount?: number;
-    donationTier?: string; // Example: 'Gratuito', 'Donador Bajo', 'Donador Medio', 'Donador Alto'
+    donationTier?: string;
 }
 
 interface LoanDoc {
-    userId: string;
+    userId: string; // Firebase Auth UID
+    uniandesCode: string; // Uniandes Code
     stationId: string; // Station where the loan originated
     loanTime: Timestamp; // Expect Timestamp after retrieval
     returnTime?: FieldValue | Timestamp;
@@ -67,9 +62,9 @@ export async function POST(request: NextRequest) {
     let body: ReturnRequestBody;
     try {
         body = await request.json();
-        // ** Require userUid for reliable return processing **
-        if (!body.stationId || !body.userUid) {
-            throw new Error('Missing stationId or userUid in request body.');
+        // Require uniandesCode for reliable return processing
+        if (!body.stationId || !body.uniandesCode) {
+            throw new Error('Missing stationId or uniandesCode in request body.');
         }
         console.log("API Route /api/dispenser/return-loan: Request Body Parsed:", body);
     } catch (error) {
@@ -77,29 +72,47 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, message: 'Solicitud inválida.' }, { status: 400 });
     }
 
-    const { stationId: returnStationId, userUid } = body; // Rename for clarity
+    const { stationId: returnStationId, uniandesCode } = body; // Rename for clarity
 
     try {
-        // --- Find the active loan for the specific user ---
-        console.log(`API Route /api/dispenser/return-loan: Looking for active loan for user ${userUid}.`);
-        const activeLoansQuery = firestoreAdmin.collection('loans')
-            .where('userId', '==', userUid)
-            .where('isReturned', '==', false)
-            .limit(1); // A user should only have one active loan
+        // --- Find User by uniandesCode ---
+        console.log(`API Route /api/dispenser/return-loan: Looking for user with uniandesCode ${uniandesCode}.`);
+        const usersRef = firestoreAdmin.collection('users');
+        // IMPORTANT: Ensure you have a Firestore index on 'uniandesCode' for this query!
+        const userQuery = usersRef.where('uniandesCode', '==', uniandesCode).limit(1);
+        const userQuerySnapshot = await userQuery.get();
 
-        const querySnapshot = await activeLoansQuery.get();
-
-        if (querySnapshot.empty) {
-             console.warn(`API Route /api/dispenser/return-loan: Return failed - No active loan found for user ${userUid}.`);
-             // This is a potential issue. Maybe the user tried to return twice?
-             // Or the loan wasn't created correctly.
-             // Incrementing the station count might be okay if an umbrella was physically returned,
-             // but it could lead to count discrepancies if the user had no loan.
-             // Let's return an error for now, as this indicates an inconsistent state.
-             return NextResponse.json({ success: false, message: 'No tienes un préstamo activo para devolver.' }, { status: 404 }); // Not Found or Bad Request (400)
+        if (userQuerySnapshot.empty) {
+            console.warn(`API Route /api/dispenser/return-loan: Return failed - User with code ${uniandesCode} not found.`);
+             // Even if the user isn't found, if an umbrella is physically returned, we might
+             // still want to increment the station count, but log the inconsistency.
+             // However, for now, let's treat it as an error preventing the full return process.
+            return NextResponse.json({ success: false, message: 'Usuario no encontrado.' }, { status: 404 });
         }
 
-        const loanDocSnap = querySnapshot.docs[0];
+        const userDocSnap = userQuerySnapshot.docs[0];
+        const userUid = userDocSnap.id; // Get the actual Firebase Auth UID
+        const userData = userDocSnap.data() as UserDoc;
+        console.log(`API Route /api/dispenser/return-loan: Found user ${userUid} for code ${uniandesCode}.`);
+
+
+        // --- Find the active loan for the specific user UID ---
+        console.log(`API Route /api/dispenser/return-loan: Looking for active loan for user UID ${userUid}.`);
+        const activeLoansQuery = firestoreAdmin.collection('loans')
+            .where('userId', '==', userUid) // Query using Firebase UID
+            .where('isReturned', '==', false)
+            .limit(1);
+
+        const loanQuerySnapshot = await activeLoansQuery.get();
+
+        if (loanQuerySnapshot.empty) {
+             console.warn(`API Route /api/dispenser/return-loan: Return failed - No active loan found for user ${userUid} (Code: ${uniandesCode}).`);
+             // This might mean they tried returning twice, or the loan wasn't created.
+             // Let's return an error.
+             return NextResponse.json({ success: false, message: 'No tienes un préstamo activo para devolver.' }, { status: 400 }); // Bad Request or Not Found (404)
+        }
+
+        const loanDocSnap = loanQuerySnapshot.docs[0];
         const loanData = loanDocSnap.data() as LoanDoc;
         const loanId = loanDocSnap.id;
 
@@ -109,53 +122,34 @@ export async function POST(request: NextRequest) {
          console.log(`API Route /api/dispenser/return-loan: Starting transaction for return of loan ${loanId} at station ${returnStationId}.`);
         await firestoreAdmin.runTransaction(async (transaction) => {
             const loanDocRef = firestoreAdmin.collection('loans').doc(loanId);
-            const userDocRef = firestoreAdmin.collection('users').doc(userUid);
+            const userDocRef = firestoreAdmin.collection('users').doc(userUid); // Use Firebase UID
             const stationDocRef = firestoreAdmin.collection('stations').doc(returnStationId); // Station where it was returned
 
-            // Get user data for potential fine calculation/tier logic
-            const userSnap = await transaction.get(userDocRef);
-             const userData = userSnap.exists ? userSnap.data() as UserDoc : null;
-
+            // Fetch current user data within transaction for fine calculation/tier logic
+            const currentUserSnap = await transaction.get(userDocRef);
+            const currentUserData = currentUserSnap.exists ? currentUserSnap.data() as UserDoc : null;
 
              // --- Perform Updates ---
-             const returnTimestamp = admin.firestore.FieldValue.serverTimestamp(); // Use server time
+             const returnTimestamp = admin.firestore.FieldValue.serverTimestamp();
 
-             // Calculate fine (if applicable)
-             // Note: Firestore server timestamps aren't immediately available in the code.
-             // For accurate fine calculation *within* the transaction using server time,
-             // it's complex. A common approach is to calculate the fine *after* the transaction
-             // based on the committed loanTime and returnTime, or use client-side time
-             // (less reliable) or estimate based on request time (also less reliable).
-             // For simplicity here, we'll calculate AFTER the transaction based on fetched data.
-             // However, this means the 'fineApplied' flag set here might be premature.
-             // A more robust solution involves a Cloud Function triggered on loan return.
-
-             // We fetch loanData again *after* the transaction to get the server-generated returnTime
+             // Update Loan Document
              transaction.update(loanDocRef, {
                 isReturned: true,
                 returnTime: returnTimestamp,
-                returnedAtStationId: returnStationId, // Record where it was returned
-                // fineApplied: fineAmount > 0, // We calculate fine *after* transaction for accuracy
+                returnedAtStationId: returnStationId,
             });
              console.log(`API Route /api/dispenser/return-loan: Transaction - Loan ${loanId} marked as returned at station ${returnStationId}.`);
 
-            // Update user status
+            // Update User Status (set hasActiveLoan to false)
             const userUpdateData: Partial<UserDoc> = { hasActiveLoan: false };
-            // Fine increment happens *after* transaction or via Cloud Function
-            // if (fineAmount > 0) {
-            //     userUpdateData.fineAmount = admin.firestore.FieldValue.increment(fineAmount);
-            //      console.log(`API Route /api/dispenser/return-loan: Transaction - Adding fine of ${fineAmount} to user ${userUid}.`);
-            // }
             transaction.update(userDocRef, userUpdateData);
             console.log(`API Route /api/dispenser/return-loan: Transaction - User ${userUid} marked as inactive (no active loan).`);
 
 
-            // Update station umbrella count (for the station where it was returned)
-             // Ensure station exists before incrementing (safety check)
+            // Update Station Umbrella Count
              const stationSnap = await transaction.get(stationDocRef);
              if (stationSnap.exists) {
                  const stationData = stationSnap.data() as StationDoc;
-                 // Prevent count exceeding capacity (optional, but good practice)
                  if (typeof stationData.capacity !== 'number' || (stationData.availableUmbrellas ?? 0) < stationData.capacity) {
                     transaction.update(stationDocRef, { availableUmbrellas: admin.firestore.FieldValue.increment(1) });
                     console.log(`API Route /api/dispenser/return-loan: Transaction - Station ${returnStationId} umbrella count incremented.`);
@@ -163,27 +157,24 @@ export async function POST(request: NextRequest) {
                       console.warn(`API Route /api/dispenser/return-loan: Station ${returnStationId} already at capacity (${stationData.capacity}). Count not incremented.`);
                  }
              } else {
-                 // This shouldn't happen if the ESP32 sends a valid ID, but handle defensively.
-                 console.warn(`API Route /api/dispenser/return-loan: Station ${returnStationId} not found during return transaction, cannot increment count. This indicates a potential configuration issue.`);
-                 // Optionally, throw an error to rollback the transaction if station consistency is critical.
+                 console.warn(`API Route /api/dispenser/return-loan: Station ${returnStationId} not found during return, cannot increment count.`);
+                 // Optionally, throw an error to rollback if station consistency is critical.
                  // throw new Error(`Return station ${returnStationId} not found.`);
              }
         });
          console.log(`API Route /api/dispenser/return-loan: Transaction completed for loan ${loanId}.`);
 
         // --- Fine Calculation (After Transaction) ---
-        // Fetch the updated loan document to get the server-generated returnTime
         const updatedLoanSnap = await firestoreAdmin.collection('loans').doc(loanId).get();
         if (updatedLoanSnap.exists) {
              const finalLoanData = updatedLoanSnap.data() as LoanDoc;
-             const userSnap = await firestoreAdmin.collection('users').doc(userUid).get();
-             const userData = userSnap.exists ? userSnap.data() as UserDoc : null;
+             const userSnap = await firestoreAdmin.collection('users').doc(userUid).get(); // Fetch user again to get latest donation tier
+             const finalUserData = userSnap.exists ? userSnap.data() as UserDoc : null;
 
-             if (finalLoanData.returnTime instanceof Timestamp) { // Ensure returnTime is a Timestamp
-                const fineAmount = calculateFine(finalLoanData, userData, finalLoanData.returnTime);
+             if (finalLoanData.returnTime instanceof Timestamp) {
+                const fineAmount = calculateFine(finalLoanData, finalUserData, finalLoanData.returnTime);
                  console.log(`API Route /api/dispenser/return-loan: Post-transaction Fine Calculation - Calculated fine: ${fineAmount}`);
 
-                 // Update loan and user documents with fine info if necessary
                  if (fineAmount > 0) {
                     const loanUpdate: Partial<LoanDoc> = { fineApplied: true };
                     const userUpdate: Partial<UserDoc> = { fineAmount: admin.firestore.FieldValue.increment(fineAmount) };
@@ -194,15 +185,14 @@ export async function POST(request: NextRequest) {
                     ]);
                     console.log(`API Route /api/dispenser/return-loan: Applied fine of ${fineAmount} to user ${userUid} and marked loan ${loanId}.`);
                  } else {
-                     // Optionally mark fineApplied as false if no fine
                      await firestoreAdmin.collection('loans').doc(loanId).update({ fineApplied: false });
                  }
 
              } else {
-                  console.warn(`API Route /api/dispenser/return-loan: Could not calculate fine for loan ${loanId} because returnTime is not a valid Timestamp.`);
+                  console.warn(`API Route /api/dispenser/return-loan: Could not calculate fine for loan ${loanId} - returnTime invalid.`);
              }
         } else {
-             console.warn(`API Route /api/dispenser/return-loan: Could not fetch updated loan document ${loanId} after transaction for fine calculation.`);
+             console.warn(`API Route /api/dispenser/return-loan: Could not fetch updated loan doc ${loanId} for fine calc.`);
         }
 
 
@@ -211,73 +201,58 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, message: 'Devolución exitosa.' }, { status: 200 });
 
     } catch (error: any) {
-        console.error(`API Route /api/dispenser/return-loan: Critical error processing return for user ${userUid} at station ${returnStationId}:`, error);
-        // Avoid revealing specific loan/user IDs in generic errors
+        console.error(`API Route /api/dispenser/return-loan: Critical error processing return for user code ${uniandesCode} at station ${returnStationId}:`, error);
         return NextResponse.json({ success: false, message: 'Error interno del servidor al procesar devolución.' }, { status: 500 });
     }
 }
 
-// --- Fine Calculation Logic ---
-
-// Calculates the allowed loan duration in milliseconds based on donation tier.
+// --- Fine Calculation Logic (Unchanged, uses UserDoc for donationTier) ---
 function getAllowedDurationMs(donationTier?: string): number {
     const baseDurationMinutes = 20;
     let bonusMinutes = 0;
 
     switch (donationTier?.toLowerCase()) {
         case 'donador bajo':
-            bonusMinutes = 15; // 20 + 15 = 35 mins total
+            bonusMinutes = 15; // 35 mins total
             break;
         case 'donador medio':
-            bonusMinutes = 35; // 20 + 35 = 55 mins total
+            bonusMinutes = 35; // 55 mins total
             break;
         case 'donador alto':
-            bonusMinutes = 60; // 20 + 60 = 80 mins total
+            bonusMinutes = 60; // 80 mins total
             break;
         default: // Gratuito or undefined
             bonusMinutes = 0;
             break;
     }
-    return (baseDurationMinutes + bonusMinutes) * 60 * 1000; // Convert total minutes to ms
+    return (baseDurationMinutes + bonusMinutes) * 60 * 1000;
 }
 
-// Calculates the fine amount based on loan duration vs allowed time.
 function calculateFine(loanData: LoanDoc, userData: UserDoc | null, returnTimeActual: Timestamp): number {
     if (!loanData.loanTime || !returnTimeActual) {
-        console.warn("API Route /api/dispenser/return-loan: Fine calculation skipped - missing loan or return time.");
-        return 0; // Cannot calculate without times
+        console.warn("API Route /api/dispenser/return-loan: Fine calculation skipped - missing times.");
+        return 0;
     }
 
-    // Firestore Timestamps need to be converted to JS Dates for calculation
     const loanStartTime = loanData.loanTime.toDate();
-    const returnTime = returnTimeActual.toDate(); // Use the actual return time
+    const returnTime = returnTimeActual.toDate();
 
     const loanDurationMs = returnTime.getTime() - loanStartTime.getTime();
     const allowedDurationMs = getAllowedDurationMs(userData?.donationTier);
 
     const overdueMs = loanDurationMs - allowedDurationMs;
-
-    // Add a small grace period (e.g., 1 minute) to account for minor clock sync issues
     const gracePeriodMs = 1 * 60 * 1000;
+
     if (overdueMs <= gracePeriodMs) {
-        console.log(`API Route /api/dispenser/return-loan: Loan returned on time or within grace period (Overdue: ${overdueMs}ms).`);
-        return 0; // No fine
+        console.log(`API Route /api/dispenser/return-loan: Loan returned on time (Overdue: ${overdueMs}ms).`);
+        return 0;
     }
 
-    // --- Define Fine Structure ---
-    // Example: $2000 COP per 15-minute block (or part thereof) overdue
     const finePerBlock = 2000;
-    const blockDurationMs = 15 * 60 * 1000; // 15 minutes in ms
-
-    // Calculate how many full 15-minute blocks were overdue
-    const overdueBlocks = Math.ceil((overdueMs - gracePeriodMs) / blockDurationMs); // Round up
-
+    const blockDurationMs = 15 * 60 * 1000;
+    const overdueBlocks = Math.ceil((overdueMs - gracePeriodMs) / blockDurationMs);
     const calculatedFine = overdueBlocks * finePerBlock;
     console.log(`API Route /api/dispenser/return-loan: Loan overdue by ${overdueMs}ms (${overdueBlocks} blocks). Fine applied: ${calculatedFine} COP.`);
-
-    // Optional: Add a maximum fine limit
-    // const maxFine = 15000;
-    // return Math.min(calculatedFine, maxFine);
 
     return calculatedFine;
 }

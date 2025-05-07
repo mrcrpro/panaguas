@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle"; // Import ModeToggle
 import { LogIn, LogOut, User } from "lucide-react";
-import { PanAguasLogo } from "@/components/PanAguasLogo"; // Import the new logo component
+import { PanAguasLogo } from "@/components/PanAguasLogo"; // Import the updated logo component
 
 export function Navbar() {
   const { user, loading } = useAuth();
@@ -36,9 +36,9 @@ export function Navbar() {
   return (
     <nav className="bg-background/80 backdrop-blur-sm border-b sticky top-0 z-50 shadow-sm">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        {/* Updated Link styling */}
+        {/* Use the logo component with explicit size */}
         <Link href="/" className="flex items-center gap-2 text-primary font-bold text-xl hover:opacity-80 transition-opacity">
-           <PanAguasLogo /> {/* Use the new logo component */}
+           <PanAguasLogo width={30} height={30} /> {/* Pass explicit size */}
            <span>PanAguas</span>
         </Link>
 

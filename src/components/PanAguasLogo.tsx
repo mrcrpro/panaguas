@@ -16,13 +16,12 @@ const PanAguasLogo: FC<PanAguasLogoProps> = ({
 }) => {
   return (
     <Image
-      src="/images/panaguas-logo.png" // Path relative to the public directory
+      src="/images/new-panaguas-logo.png" // Path relative to the public directory
       alt="PanAguas Logo"
       width={width} // Use passed or default width
       height={height} // Use passed or default height
       className={cn(className)} // Apply external classes; size is primarily controlled by width/height props
       priority // Load the logo image early
-      unoptimized={process.env.NODE_ENV === 'development'} // Helps with local dev issues sometimes
     />
   );
 };

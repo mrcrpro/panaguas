@@ -33,15 +33,20 @@ export default function RootLayout({
           >
           <QueryProvider> {/* Wrap with QueryProvider */}
               <AuthProvider>
-                <Suspense fallback={<div>Cargando Navegación...</div>}> {/* Add Suspense for Navbar */}
+                <Suspense fallback={<div className="h-16 bg-background border-b flex items-center justify-center text-sm text-muted-foreground">Cargando Navegación...</div>}> {/* Lightweight Suspense fallback */}
                   <Navbar /> {/* Add Navbar */}
                 </Suspense>
                 <main className="flex-grow container mx-auto px-4 py-8"> {/* Add main content wrapper */}
-                  <Suspense fallback={<div>Cargando Contenido...</div>}> {/* Add Suspense for main content */}
-                    {children}
-                  </Suspense>
+                   {/* Add Suspense with a more central loading indicator for main content */}
+                   <Suspense fallback={
+                       <div className="flex justify-center items-center min-h-[calc(100vh-20rem)]">
+                           <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                        </div>
+                    }>
+                     {children}
+                   </Suspense>
                 </main>
-                <Suspense fallback={<div>Cargando Pie de página...</div>}> {/* Add Suspense for Footer */}
+                <Suspense fallback={<div className="h-16 bg-muted flex items-center justify-center text-sm text-muted-foreground">Cargando Pie de página...</div>}> {/* Lightweight Suspense fallback */}
                    <Footer /> {/* Add Footer */}
                 </Suspense>
                 <Toaster />

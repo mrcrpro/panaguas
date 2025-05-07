@@ -19,7 +19,13 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  experimental: {
+    serverActions: { // Enabling server actions (bodySizeLimit can be adjusted if needed)
+        bodySizeLimit: '2mb', // Default is 1mb, increased slightly
+    },
+  }
   // reactStrictMode: false, // Disabling strict mode (consider implications)
 };
 
 export default nextConfig;
+

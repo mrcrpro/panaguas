@@ -1,42 +1,63 @@
-"use client"; // Needs client-side hooks for data fetching
+
+"use client"; // Needs client-side hooks for data fetching and dynamic imports
 
 import { useQuery } from '@tanstack/react-query';
-import { Umbrella, Building, Loader2, AlertTriangle, Info } from 'lucide-react'; // Added Info icon
+import { Umbrella, Building, Loader2, AlertTriangle, Info, MapPin } from 'lucide-react'; // Added Info and MapPin icons
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import dynamic from 'next/dynamic'; // Import dynamic
+import React, { Suspense } from 'react'; // Import Suspense
 
 // Define Station type (matching the API response)
 interface Station {
-  id: string; // Use string ID from Firestore/API
+  id: string;
   name: string;
   location: string;
   status: string;
   available: number;
-  capacity: number; // Added capacity field
+  capacity: number;
   coords?: [number, number]; // Keep coords for potential future use
 }
 
-// Function to fetch station data
+// Dynamically import the MapComponent with a loading fallback
+const MapComponent = dynamic(() => import('@/components/map/map-component'), {
+  ssr: false, // Leaflet typically needs the browser environment
+  loading: () => (
+    <div className="flex justify-center items-center h-[400px] bg-muted rounded-md">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2 text-muted-foreground">Cargando mapa...</p>
+    </div>
+    )
+});
+
+
+// Function to fetch station data (ensure this is optimized on the backend)
 const fetchStations = async (): Promise<Station[]> => {
     console.log("Fetching stations from /api/stations...");
-    const response = await fetch('/api/stations');
+    // Added cache: 'no-store' to ensure fresh data, but consider if caching is desired
+    const response = await fetch('/api/stations', { cache: 'no-store' });
     console.log("Fetch response status:", response.status);
     if (!response.ok) {
         const errorData = await response.text(); // Get more error details
         console.error("Failed to fetch stations:", response.status, response.statusText, errorData);
         // Attempt to parse for structured error, fallback to text
         let errorMessage = `Error ${response.status}: ${response.statusText}`;
-        try {
-             const parsedError = JSON.parse(errorData);
-             errorMessage = parsedError.message || parsedError.errorDetails || errorData;
-        } catch (e) {
-             // Use raw errorData if JSON parsing fails
-             errorMessage += ` - ${errorData}`;
+         // Basic check if errorData looks like HTML
+        if (errorData.trim().startsWith('<')) {
+             errorMessage += " - Server returned an HTML error page instead of JSON.";
+        } else {
+             try {
+                 const parsedError = JSON.parse(errorData);
+                 errorMessage = parsedError.message || parsedError.errorDetails || errorData;
+             } catch (e) {
+                 // Use raw errorData if JSON parsing fails or it's not JSON
+                 errorMessage += ` - ${errorData}`;
+             }
         }
 
-         throw new Error(errorMessage);
+         throw new Error(`Failed to fetch stations: ${errorMessage}`);
     }
     const data: Station[] = await response.json();
      console.log("Stations data received:", data);
@@ -46,10 +67,11 @@ const fetchStations = async (): Promise<Station[]> => {
 
 export default function StationsPage() {
     const { data: stations = [], isLoading, error, isError } = useQuery<Station[], Error>({
-        queryKey: ['stations'], // Unique key for this query
-        queryFn: fetchStations, // The function to fetch data
-        // Optional: Configure refetch intervals, stale time, etc.
-        // refetchInterval: 1000 * 60, // Refetch every minute
+        queryKey: ['stations'],
+        queryFn: fetchStations,
+        // Reduce staleTime for more frequent updates if needed, but consider backend load
+        staleTime: 1000 * 60 * 1, // 1 minute stale time
+        refetchInterval: 1000 * 60 * 2, // Refetch every 2 minutes
     });
 
 
@@ -74,7 +96,7 @@ export default function StationsPage() {
 
          {/* Loading Skeletons */}
          {isLoading && (
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
                 {[...Array(3)].map((_, i) => (
                      <Card key={i} className="animate-pulse">
                         <CardHeader>
@@ -94,7 +116,7 @@ export default function StationsPage() {
 
          {/* Error Message or No Stations Found Message */}
          {isError && ( // Display only when there is an actual error
-             <Alert variant="destructive" className="max-w-2xl mx-auto bg-destructive/10 border-destructive/30">
+             <Alert variant="destructive" className="max-w-2xl mx-auto bg-destructive/10 border-destructive/30 mb-12">
                  <AlertTriangle className="h-4 w-4 text-destructive" />
                  <AlertTitle className="text-destructive">Error al Cargar Estaciones</AlertTitle>
                  <AlertDescription className="text-destructive/90">
@@ -107,7 +129,7 @@ export default function StationsPage() {
 
          {/* No Stations Found Message (when not loading and no error, but array is empty) */}
           {!isLoading && !isError && stations.length === 0 && (
-            <Alert variant="default" className="max-w-2xl mx-auto bg-muted/50 border-border">
+            <Alert variant="default" className="max-w-2xl mx-auto bg-muted/50 border-border mb-12">
                  <Info className="h-4 w-4" />
                  <AlertTitle>Información</AlertTitle>
                  <AlertDescription>
@@ -119,46 +141,63 @@ export default function StationsPage() {
 
          {/* Station List */}
          {!isLoading && !isError && stations.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {stations.map((station) => (
-                <Card key={station.id} className="shadow-sm hover:shadow-md transition-shadow border border-border">
-                    <CardHeader>
-                        <CardTitle className="text-xl flex items-center">
-                             <Building className="mr-3 h-5 w-5 text-secondary flex-shrink-0" />
-                             {station.name}
-                         </CardTitle>
-                        <CardDescription className="flex items-center text-sm pt-1">
-                            {station.location}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        <div>
-                             <p className="text-sm font-medium text-muted-foreground mb-1">Disponibilidad:</p>
-                            <div className="flex items-center space-x-2">
-                                <Umbrella className={`h-5 w-5 ${getStatusColor(station.status, station.available)}`} />
-                                <span className="text-lg font-bold text-foreground">
-                                     {station.available} / {station.capacity}
-                                </span>
+             <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                {stations.map((station) => (
+                    <Card key={station.id} className="shadow-sm hover:shadow-md transition-shadow border border-border">
+                        <CardHeader>
+                            <CardTitle className="text-xl flex items-center">
+                                <Building className="mr-3 h-5 w-5 text-secondary flex-shrink-0" />
+                                {station.name}
+                            </CardTitle>
+                            <CardDescription className="flex items-center text-sm pt-1">
+                                <MapPin className="mr-1.5 h-4 w-4 text-muted-foreground flex-shrink-0"/>
+                                {station.location}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground mb-1">Disponibilidad:</p>
+                                <div className="flex items-center space-x-2">
+                                    <Umbrella className={`h-5 w-5 ${getStatusColor(station.status, station.available)}`} />
+                                    <span className="text-lg font-bold text-foreground">
+                                        {station.available} / {station.capacity}
+                                    </span>
+                                </div>
+                                <Progress
+                                    value={(station.capacity > 0 ? (station.available / station.capacity) : 0) * 100} // Avoid division by zero
+                                    className="h-2 mt-2"
+                                    aria-label={`${station.available} de ${station.capacity} paraguas disponibles`}
+                                />
                             </div>
-                             <Progress
-                                value={(station.capacity > 0 ? (station.available / station.capacity) : 0) * 100} // Avoid division by zero
-                                className="h-2 mt-2"
-                                aria-label={`${station.available} de ${station.capacity} paraguas disponibles`}
-                             />
-                        </div>
-                         <div>
-                             <p className="text-sm font-medium text-muted-foreground mb-1">Estado:</p>
-                             <p className={`text-sm font-semibold ${getStatusColor(station.status, station.available)}`}>
-                                {station.status === 'Operativa' && station.available === 0 ? 'Operativa (Sin Paraguas)' : station.status}
-                            </p>
-                        </div>
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground mb-1">Estado:</p>
+                                <p className={`text-sm font-semibold ${getStatusColor(station.status, station.available)}`}>
+                                    {station.status === 'Operativa' && station.available === 0 ? 'Operativa (Sin Paraguas)' : station.status}
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+                </div>
 
-                    </CardContent>
-                </Card>
-            ))}
-            </div>
+                 {/* Map Section - Conditionally render if stations have coordinates */}
+                 <div className="mt-12 pt-8 border-t">
+                    <h2 className="text-2xl md:text-3xl font-bold text-secondary mb-6 text-center">Ubicación en el Campus</h2>
+                     {/* Wrap MapComponent in Suspense */}
+                     <Suspense fallback={
+                        <div className="flex justify-center items-center h-[400px] bg-muted rounded-md">
+                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                             <p className="ml-2 text-muted-foreground">Cargando mapa...</p>
+                        </div>
+                        }>
+                        <MapComponent stations={stations.filter(s => s.coords)} /> {/* Pass filtered stations */}
+                     </Suspense>
+                 </div>
+             </>
          )}
         </div> {/* Close container div */}
     </section>
   );
 }
+

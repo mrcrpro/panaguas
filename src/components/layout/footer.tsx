@@ -1,33 +1,26 @@
 import Link from "next/link";
 import { Github, Linkedin, Mail } from "lucide-react";
 
-// New SVG Logo Component - Reverted to original simpler design
+// Updated SVG Logo Component - Based on the provided image
 const PanAguasLogo = ({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 100 100" // Adjusted viewBox for better clarity if the design is complex
+    viewBox="0 0 24 24" // Adjusted viewBox for better scaling
     fill="none"
     stroke="currentColor"
-    strokeWidth="3" // Adjusted stroke width for visibility
+    strokeWidth="1.5" // Adjusted stroke width
     strokeLinecap="round"
     strokeLinejoin="round"
-    className={className || "h-8 w-8"} // Default size increased slightly
+    className={className || "h-8 w-8"} // Default size
   >
-    {/* Main Umbrella Canopy - More Rounded */}
-    <path d="M15 55 C 15 30, 85 30, 85 55 A 40 40 0 0 1 15 55 Z" />
-
-    {/* Handle - Centered and Straight */}
-    <path d="M50 55 V 90" />
-
-    {/* Optional: Small curve at the bottom of the handle */}
-    <path d="M40 90 Q 50 95, 60 90" />
-
-    {/* Raindrops - Simple circles, more spread out */}
-    <circle cx="30" cy="25" r="3" />
-    <circle cx="50" cy="20" r="3" />
-    <circle cx="70" cy="25" r="3" />
-    <circle cx="40" cy="35" r="2.5" />
-    <circle cx="60" cy="35" r="2.5" />
+    {/* Outer Drop Shape */}
+    <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0L12 2.69z" strokeWidth="1.5"/>
+    {/* Umbrella Top */}
+    <path d="M14.5 10.5 A 4.5 4.5 0 0 0 9.5 10.5 Z" fill="currentColor"/>
+    {/* Umbrella Handle */}
+     <line x1="12" y1="10.5" x2="12" y2="17" strokeWidth="1.5" />
+     {/* Umbrella Handle Hook */}
+     <path d="M12 17 a 1 1 0 0 0 -1 1" strokeWidth="1.5" />
   </svg>
 );
 
@@ -42,7 +35,7 @@ export function Footer() {
         {/* Brand and Copyright */}
         <div className="flex flex-col items-center md:items-start">
           <Link href="/" className="flex items-center space-x-2 text-primary font-bold text-lg mb-2 hover:opacity-80 transition-opacity">
-            <PanAguasLogo className="h-7 w-7" />
+            <PanAguasLogo className="h-7 w-7 text-primary" /> {/* Use updated logo */}
             <span>PanAguas</span>
           </Link>
           <p className="text-sm">

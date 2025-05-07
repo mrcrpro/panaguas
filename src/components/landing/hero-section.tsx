@@ -1,4 +1,3 @@
-
 "use client"; // For potential animations or interactions
 
 import { Button } from "@/components/ui/button";
@@ -21,14 +20,14 @@ export function HeroSection() {
       <div className="container mx-auto px-4 relative z-10">
         {/* Animated Umbrella Illustration */}
         <div className="mb-8 flex justify-center">
-            {/* Replace with a nice illustration or animation */}
              <Image
-                src="https://picsum.photos/seed/panaguas-hero/300/300" // Placeholder: Replace with actual illustration URL
-                alt="Ilustración de un paraguas animado"
+                src="https://picsum.photos/seed/panaguas-logo-main/300/300" // Using picsum placeholder, hinting at the actual logo
+                alt="Logo de PanAguas - Paraguas dentro de una gota" // Updated alt text
                 width={200}
                 height={200}
                 className="rounded-full shadow-lg animate-bounce-slow" // Simple bounce animation example
-                data-ai-hint="animated umbrella illustration flat design"
+                data-ai-hint="umbrella drop logo blue" // Added hint for AI image generation
+                priority // Add priority to preload the LCP image
               />
          </div>
 

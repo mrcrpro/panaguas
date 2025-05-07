@@ -1,29 +1,7 @@
+
 import Link from "next/link";
 import { Github, Linkedin, Mail } from "lucide-react";
-
-// Updated SVG Logo Component - Based on the provided image
-const PanAguasLogo = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24" // Adjusted viewBox for better scaling
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5" // Adjusted stroke width
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className || "h-8 w-8"} // Default size
-  >
-    {/* Outer Drop Shape */}
-    <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0L12 2.69z" strokeWidth="1.5"/>
-    {/* Umbrella Top */}
-    <path d="M14.5 10.5 A 4.5 4.5 0 0 0 9.5 10.5 Z" fill="currentColor"/>
-    {/* Umbrella Handle */}
-     <line x1="12" y1="10.5" x2="12" y2="17" strokeWidth="1.5" />
-     {/* Umbrella Handle Hook */}
-     <path d="M12 17 a 1 1 0 0 0 -1 1" strokeWidth="1.5" />
-  </svg>
-);
-
+import { PanAguasLogo } from "@/components/PanAguasLogo"; // Import the new logo component
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -34,8 +12,9 @@ export function Footer() {
       <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8 items-center text-center md:text-left">
         {/* Brand and Copyright */}
         <div className="flex flex-col items-center md:items-start">
-          <Link href="/" className="flex items-center space-x-2 text-primary font-bold text-lg mb-2 hover:opacity-80 transition-opacity">
-            <PanAguasLogo className="h-7 w-7 text-primary" /> {/* Use updated logo */}
+          {/* Updated Link styling */}
+          <Link href="/" className="flex items-center gap-2 text-primary font-bold text-lg mb-2 hover:opacity-80 transition-opacity">
+            <PanAguasLogo /> {/* Use the new logo component */}
             <span>PanAguas</span>
           </Link>
           <p className="text-sm">

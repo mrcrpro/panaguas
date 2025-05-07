@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Github, Linkedin, Mail } from "lucide-react";
 
-// New SVG Logo Component
+// New SVG Logo Component - Reverted to original simpler design
 const PanAguasLogo = ({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -34,6 +34,7 @@ const PanAguasLogo = ({ className }: { className?: string }) => (
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
+  const contactEmail = "panaguas.25@gmail.com"; // Updated email
 
   return (
     <footer className="bg-muted text-muted-foreground border-t mt-12 py-8">
@@ -64,11 +65,11 @@ export function Footer() {
         <div className="flex flex-col items-center md:items-end space-y-2">
             <p className="text-sm font-medium">Contacto del Equipo:</p>
              <a
-                href="mailto:panaguas.25@gmail.com"
+                href={`mailto:${contactEmail}`}
                 className="flex items-center space-x-2 hover:text-primary transition-colors text-sm"
              >
                 <Mail className="h-4 w-4" />
-                <span>panaguas.25@gmail.com</span>
+                <span>{contactEmail}</span>
              </a>
           <div className="flex space-x-4 mt-2">
              {/* Add relevant social links if the project has them */}

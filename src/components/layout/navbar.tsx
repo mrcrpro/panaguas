@@ -9,20 +9,33 @@ import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle"; // Import ModeToggle
 import { LogIn, LogOut, User } from "lucide-react";
 
-// New SVG Logo Component
+// New SVG Logo Component - Reverted to original simpler design
 const PanAguasLogo = ({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none" // Ensure fill is none for stroked paths
-    stroke="currentColor" // Use currentColor for stroke
-    className={className || "h-6 w-6"}
+    viewBox="0 0 100 100" // Adjusted viewBox for better clarity if the design is complex
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="3" // Adjusted stroke width for visibility
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className || "h-8 w-8"} // Default size increased slightly
   >
-    <path d="M6.75 9.25C6.75 8.00964 7.75964 7 9 7H15C16.2404 7 17.25 8.00964 17.25 9.25V10.5C17.25 11.9004 17.0443 13.2354 16.6652 14.4676C15.6511 17.734 12.8082 20.7078 12.1585 21.3218C12.0543 21.4201 11.9457 21.4201 11.8415 21.3218C11.1918 20.7078 8.34887 17.734 7.33481 14.4676C6.95574 13.2354 6.75 11.9004 6.75 10.5V9.25Z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M9.5 10C9.5 9.17157 10.1716 8.5 11 8.5H13C13.8284 8.5 14.5 9.17157 14.5 10V10.5C14.5 12.1569 13.1569 13.5 11.5 13.5H10.5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M14.5 4.5L14.5 2.5" strokeWidth="1.5" strokeLinecap="round"/>
-    <path d="M9.5 4.5L9.5 2.5" strokeWidth="1.5" strokeLinecap="round"/>
-    <path d="M12 5.5L12 2.5" strokeWidth="1.5" strokeLinecap="round"/>
+    {/* Main Umbrella Canopy - More Rounded */}
+    <path d="M15 55 C 15 30, 85 30, 85 55 A 40 40 0 0 1 15 55 Z" />
+
+    {/* Handle - Centered and Straight */}
+    <path d="M50 55 V 90" />
+
+    {/* Optional: Small curve at the bottom of the handle */}
+    <path d="M40 90 Q 50 95, 60 90" />
+
+    {/* Raindrops - Simple circles, more spread out */}
+    <circle cx="30" cy="25" r="3" />
+    <circle cx="50" cy="20" r="3" />
+    <circle cx="70" cy="25" r="3" />
+    <circle cx="40" cy="35" r="2.5" />
+    <circle cx="60" cy="35" r="2.5" />
   </svg>
 );
 

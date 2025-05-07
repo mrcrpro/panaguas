@@ -37,8 +37,8 @@ export function Navbar() {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Brand Logo and Name */}
         <Link href="/" className="flex items-center gap-2 text-primary font-bold text-xl hover:opacity-80 transition-opacity">
-           <PanAguasLogo width={30} height={30} /> {/* Explicit size */}
-           <span className="text-foreground">PanAguas</span> {/* Added text */}
+           <PanAguasLogo width={30} height={30} className="h-7 w-7" /> {/* Explicit size */}
+           <span className="text-primary">PanAguas</span> {/* Added text-primary */}
         </Link>
 
         {/* Navigation Links and Controls */}

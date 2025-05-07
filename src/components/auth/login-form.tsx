@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -15,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { sendWelcomeEmail } from "@/services/email-service"; // Import email service
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Correo electrónico inválido." }),
@@ -90,10 +92,16 @@ export function LoginForm() {
               fineAmount: 0 // Default fine amount
           });
 
+           // Send welcome email (don't wait for it)
+           sendWelcomeEmail({ email: values.email, name: values.name })
+             .catch(emailError => {
+                 console.error("Failed to send welcome email:", emailError);
+                 // Log error but don't fail registration if email fails
+             });
 
           toast({
             title: "Registro Exitoso",
-            description: "Tu cuenta ha sido creada.",
+            description: "Tu cuenta ha sido creada. ¡Revisa tu correo!",
           });
         // Redirect or state change handled by AuthProvider
       } catch (err: any) {
@@ -124,6 +132,8 @@ export function LoginForm() {
        case "auth/invalid-uniandes-code": // Example custom error
            return "El código Uniandino no es válido.";
       default:
+        // Log the original error for debugging purposes
+        console.error("Unhandled Firebase Auth Error:", error);
         return "Ocurrió un error inesperado. Por favor, inténtalo de nuevo.";
     }
   };

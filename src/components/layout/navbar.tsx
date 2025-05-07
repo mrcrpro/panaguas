@@ -35,12 +35,13 @@ export function Navbar() {
   return (
     <nav className="bg-background/80 backdrop-blur-sm border-b sticky top-0 z-50 shadow-sm">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        {/* Use the logo component */}
+        {/* Brand Logo and Name */}
         <Link href="/" className="flex items-center gap-2 text-primary font-bold text-xl hover:opacity-80 transition-opacity">
-           <PanAguasLogo width={30} height={30} /> {/* Pass explicit size */}
-           {/* Removed the span with text */}
+           <PanAguasLogo width={30} height={30} /> {/* Explicit size */}
+           <span className="text-foreground">PanAguas</span> {/* Added text */}
         </Link>
 
+        {/* Navigation Links and Controls */}
         <div className="flex items-center space-x-4">
           <Link href="/#how-it-works" passHref legacyBehavior>
             <Button variant="ghost" className="text-foreground/80 hover:text-foreground">¿Cómo funciona?</Button>
@@ -49,7 +50,7 @@ export function Navbar() {
              <Button variant="ghost" className="text-foreground/80 hover:text-foreground">Donar</Button>
            </Link>
            {/* Updated Link */}
-           <Link href="/stations" passHref >
+           <Link href="/stations">
             <Button variant="ghost" className="text-foreground/80 hover:text-foreground">Estaciones</Button>
           </Link>
 
@@ -57,6 +58,7 @@ export function Navbar() {
 
            <ModeToggle /> {/* Add Theme Toggle */}
 
+          {/* Auth Status */}
           {loading ? (
             <Button variant="ghost" size="icon" disabled>
               <User className="h-5 w-5 animate-pulse" />

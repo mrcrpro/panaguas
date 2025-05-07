@@ -12,10 +12,10 @@ export function Footer() {
       <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8 items-center text-center md:text-left">
         {/* Brand and Copyright */}
         <div className="flex flex-col items-center md:items-start">
-          {/* Use the logo component */}
+          {/* Use the logo component with text */}
           <Link href="/" className="flex items-center gap-2 text-primary font-bold text-lg mb-2 hover:opacity-80 transition-opacity">
             <PanAguasLogo width={30} height={30} /> {/* Pass explicit size */}
-             {/* Removed the span with text */}
+             <span className="text-foreground">PanAguas</span> {/* Added text */}
           </Link>
           <p className="text-sm">
             &copy; {currentYear} PanAguas Uniandes. Todos los derechos reservados.

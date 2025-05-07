@@ -22,6 +22,7 @@ const PanAguasLogo: FC<PanAguasLogoProps> = ({
       height={height} // Use passed or default height
       className={cn(className)} // Apply external classes; size is primarily controlled by width/height props
       priority // Load the logo image early
+      unoptimized={process.env.NODE_ENV === 'development'} // Helps with local dev issues sometimes
     />
   );
 };

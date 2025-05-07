@@ -86,7 +86,7 @@ export default function TermsPage() {
 
              <h2>12. Contacto</h2>
              <p>
-                Si tienes preguntas sobre estos Términos, puedes contactarnos a través de [Correo electrónico de contacto: j.santacruzc@uniandes.edu.co].
+                Si tienes preguntas sobre estos Términos, puedes contactarnos a través de [Correo electrónico de contacto: panaguas.25@gmail.com].
             </p>
 
             <p className="font-semibold mt-6">Al marcar la casilla de aceptación durante el registro, confirmas que has leído, entendido y aceptado estos Términos y Condiciones.</p>

@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Mail } from "lucide-react";
 
 export function ContactSection() {
-  const contactEmail = "j.santacruzc@uniandes.edu.co";
+  const contactEmail = "panaguas.25@gmail.com";
 
   return (
     <Card className="border-secondary shadow-sm">

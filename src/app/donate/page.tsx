@@ -39,7 +39,7 @@ const donationTiersInfo = [
   },
 ];
 
-const contactEmail = "j.santacruzc@uniandes.edu.co";
+const contactEmail = "panaguas.25@gmail.com";
 const accountNumber = "944 - 825985 - 49";
 const accountNumberToCopy = "94482598549"; // Number without spaces/hyphens
 
